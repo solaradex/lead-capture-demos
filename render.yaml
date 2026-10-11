@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: lead-demo-plumbing
+    runtime: python
+    plan: free
+    rootDir: plumbing
+    buildCommand: echo "no build needed"
+    startCommand: python3 backend/server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  - type: web
+    name: lead-demo-pest
+    runtime: python
+    plan: free
+    rootDir: pest
+    buildCommand: echo "no build needed"
+    startCommand: python3 backend/server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  - type: web
+    name: lead-demo-roofing
+    runtime: python
+    plan: free
+    rootDir: roofing
+    buildCommand: echo "no build needed"
+    startCommand: python3 backend/server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
