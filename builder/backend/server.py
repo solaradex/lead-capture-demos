@@ -227,7 +227,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     import sys
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PORT", 8080))
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     print(f"Oakridge Custom Homes demo running at http://localhost:{port}")
     print(f"Owner dashboard at http://localhost:{port}/dashboard")
