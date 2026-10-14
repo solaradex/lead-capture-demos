@@ -31,3 +31,25 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+
+  - type: web
+    name: lead-demo-gc
+    runtime: python
+    plan: free
+    rootDir: gc
+    buildCommand: echo "no build needed"
+    startCommand: python3 backend/server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  - type: web
+    name: lead-demo-builder
+    runtime: python
+    plan: free
+    rootDir: builder
+    buildCommand: echo "no build needed"
+    startCommand: python3 backend/server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
