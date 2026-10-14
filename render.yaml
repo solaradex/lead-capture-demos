@@ -53,3 +53,14 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+
+  - type: web
+    name: lead-demo-willrich
+    runtime: python
+    plan: free
+    rootDir: willrich
+    buildCommand: echo "no build needed"
+    startCommand: python3 backend/server.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
