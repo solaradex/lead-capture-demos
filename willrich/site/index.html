@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Willrich Homes LLC — Making Dreams Come True | Custom & Spec Homes in Macclenny, FL</title>
+<meta name="description" content="Willrich Homes LLC builds custom and move-in-ready spec homes in Macclenny and Baker County, FL. Open-concept designs, granite counters, no HOA. Call (904) 408-0421 for a free consultation.">
+<style>
+  :root {
+    --gold: #c9a227; --gold-light: #e8c96a; --gold-dark: #8a6d14;
+    --black: #0a0a0a; --charcoal: #141414; --smoke: #1e1e1e;
+    --ink: #f5f1e8; --muted: #a8a29e; --line: #2a2a2a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: "Georgia", "Times New Roman", serif; background: var(--black); color: var(--ink); line-height: 1.7; }
+  h1, h2, h3, .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+
+  /* ---------- top bar ---------- */
+  .topbar { background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-dark));
+            color: #0a0a0a; font-size: 13px; font-weight: 700; padding: 9px 24px;
+            display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+            font-family: -apple-system, sans-serif; letter-spacing: .3px; }
+  .topbar a { color: #0a0a0a; text-decoration: underline; }
+
+  /* ---------- header ---------- */
+  header { display: flex; justify-content: space-between; align-items: center;
+           padding: 14px 36px; position: sticky; top: 0; z-index: 100;
+           background: rgba(10,10,10,.92); backdrop-filter: blur(10px);
+           border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand img { height: 52px; width: auto; border-radius: 6px; }
+  .brand .name { font-family: -apple-system, sans-serif; font-weight: 800; font-size: 20px;
+                 letter-spacing: 1px; color: #fff; }
+  .brand .name em { color: var(--gold); font-style: normal; }
+  .brand .tag { display: block; font-size: 11px; color: var(--gold-light);
+                letter-spacing: 2.5px; text-transform: uppercase; font-weight: 600; }
+  nav a { margin-left: 26px; text-decoration: none; color: var(--ink); font-weight: 500;
+          font-size: 15px; font-family: -apple-system, sans-serif; transition: color .2s; }
+  nav a:hover { color: var(--gold); }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; padding: 110px 32px 90px; text-align: center; overflow: hidden;
+          background: radial-gradient(ellipse 80% 60% at 50% 0%, #2a2110 0%, var(--black) 70%); }
+  .hero::before { content: ""; position: absolute; inset: 0;
+                  background: url("/site/logo.jpg") center 30%/min(560px, 90vw) no-repeat;
+                  opacity: .10; pointer-events: none; }
+  .hero-inner { position: relative; max-width: 860px; margin: 0 auto; }
+  .eyebrow { display: inline-block; border: 1px solid var(--gold); color: var(--gold-light);
+             padding: 7px 22px; border-radius: 999px; font-size: 12px; letter-spacing: 3px;
+             text-transform: uppercase; margin-bottom: 26px; font-family: -apple-system, sans-serif; }
+  .hero h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.15; margin-bottom: 18px; color: #fff; }
+  .hero h1 .gold { color: var(--gold); }
+  .hero p.lead { font-size: 20px; color: var(--muted); max-width: 640px; margin: 0 auto 34px; }
+  .cta-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 16px 36px; border-radius: 4px; font-weight: 700;
+         text-decoration: none; font-size: 16px; cursor: pointer; border: none;
+         font-family: -apple-system, sans-serif; letter-spacing: .5px; transition: transform .15s, box-shadow .15s; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-gold { background: linear-gradient(135deg, var(--gold-light), var(--gold) 60%, var(--gold-dark));
+              color: #0a0a0a; box-shadow: 0 8px 24px rgba(201,162,39,.35); }
+  .btn-ghost { background: transparent; color: var(--gold-light); border: 1px solid var(--gold); }
+  .hero-proof { margin-top: 30px; font-size: 14px; color: var(--muted); font-family: -apple-system, sans-serif; }
+  .hero-proof strong { color: var(--gold-light); }
+
+  /* ---------- sections ---------- */
+  section { padding: 72px 32px; max-width: 1140px; margin: 0 auto; }
+  .kicker { text-align: center; color: var(--gold); font-size: 12px; letter-spacing: 3px;
+            text-transform: uppercase; margin-bottom: 10px; font-family: -apple-system, sans-serif; font-weight: 700; }
+  h2 { font-size: clamp(28px, 4vw, 40px); margin-bottom: 10px; text-align: center; color: #fff; }
+  .sub { text-align: center; color: var(--muted); margin-bottom: 44px; font-size: 17px; max-width: 680px; margin-left: auto; margin-right: auto; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; }
+  .card { background: linear-gradient(160deg, var(--smoke), var(--charcoal));
+          border: 1px solid var(--line); border-radius: 10px; padding: 32px 28px;
+          transition: border-color .25s, transform .25s; position: relative; overflow: hidden; }
+  .card::top { content: ""; }
+  .card:hover { border-color: var(--gold-dark); transform: translateY(-4px); }
+  .card .rule { width: 44px; height: 3px; background: var(--gold); margin-bottom: 16px; border-radius: 2px; }
+  .card h3 { font-size: 20px; margin-bottom: 8px; color: #fff; }
+  .card p { color: var(--muted); font-size: 15px; font-family: -apple-system, sans-serif; }
+
+  /* ---------- featured home ---------- */
+  .feature { background: linear-gradient(160deg, #1c1710, var(--charcoal));
+             border: 1px solid var(--gold-dark); border-radius: 14px; padding: 44px;
+             display: grid; grid-template-columns: 1fr 1fr; gap: 44px; align-items: center; }
+  .feature .specs { list-style: none; margin: 20px 0; font-family: -apple-system, sans-serif; }
+  .feature .specs li { padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+  .feature .specs li strong { color: var(--ink); display: inline-block; min-width: 150px; }
+  .feature h3 { font-size: 28px; color: #fff; margin-bottom: 6px; }
+  .feature .addr { color: var(--gold-light); font-family: -apple-system, sans-serif; font-size: 15px; }
+  .feature .visual { background: radial-gradient(circle at 50% 40%, #3a2f16, var(--black) 75%);
+                     border-radius: 10px; min-height: 320px; display: flex; align-items: center;
+                     justify-content: center; border: 1px solid var(--line); }
+  .feature .visual img { max-width: 80%; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+
+  /* ---------- process ---------- */
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0; margin-top: 10px; }
+  .step { padding: 30px 26px; text-align: center; border-left: 1px solid var(--line); }
+  .step:first-child { border-left: none; }
+  .step .num { font-size: 44px; font-weight: 800; color: transparent;
+               -webkit-text-stroke: 1.5px var(--gold); font-family: -apple-system, sans-serif; }
+  .step h3 { font-size: 17px; margin: 10px 0 6px; color: #fff; }
+  .step p { color: var(--muted); font-size: 14px; font-family: -apple-system, sans-serif; }
+
+  /* ---------- testimonials ---------- */
+  .quote { background: var(--smoke); border-left: 3px solid var(--gold); padding: 24px 28px;
+           border-radius: 0 10px 10px 0; margin-bottom: 18px; }
+  .quote p { font-style: italic; margin-bottom: 8px; font-size: 17px; }
+  .quote cite { color: var(--gold-light); font-size: 13px; font-style: normal; font-family: -apple-system, sans-serif; }
+
+  /* ---------- CTA band ---------- */
+  .band { background: linear-gradient(120deg, var(--gold-dark), var(--gold) 50%, var(--gold-dark));
+          color: #0a0a0a; text-align: center; padding: 64px 32px; }
+  .band h2 { color: #0a0a0a; margin-bottom: 8px; }
+  .band p { font-family: -apple-system, sans-serif; font-weight: 600; margin-bottom: 26px; font-size: 17px; }
+  .band .btn-dark { background: #0a0a0a; color: var(--gold-light); }
+
+  footer { background: #050505; color: var(--muted); padding: 48px 32px 32px; text-align: center;
+           font-size: 14px; border-top: 1px solid var(--line); font-family: -apple-system, sans-serif; }
+  footer .fname { color: #fff; font-weight: 800; font-size: 17px; letter-spacing: 1px; }
+  footer .ftag { color: var(--gold); font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; }
+  footer a { color: var(--gold-light); font-weight: 700; text-decoration: none; }
+
+  @media (max-width: 760px) {
+    .feature { grid-template-columns: 1fr; padding: 30px 24px; }
+    nav { display: none; }
+    .step { border-left: none; border-top: 1px solid var(--line); }
+    .step:first-child { border-top: none; }
+    header { padding: 12px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span>★ Now building in Macclenny &amp; Baker County — ask about current spec inventory</span>
+  <span>Call now: <a href="tel:+19044080421">(904) 408-0421</a></span>
+</div>
+
+<header>
+  <div class="brand">
+    <img src="/site/logo.jpg" alt="Willrich Homes logo">
+    <div>
+      <span class="name">WILLRICH <em>HOMES</em></span>
+      <span class="tag">Making Dreams Come True</span>
+    </div>
+  </div>
+  <nav class="sans">
+    <a href="#homes">Our Homes</a>
+    <a href="#featured">Featured Build</a>
+    <a href="#process">Process</a>
+    <a href="#contact">Contact</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Macclenny · Baker County · Florida</div>
+    <h1>We Build Homes<br><span class="gold">Worth Dreaming About.</span></h1>
+    <p class="lead">Custom builds on your land and designer-finished spec homes —
+       open-concept living, quality finishes, and honest local craftsmanship.
+       Making dreams come true, one front porch at a time.</p>
+    <div class="cta-row">
+      <a class="btn btn-gold" href="tel:+19044080421">📞 (904) 408-0421</a>
+      <button class="btn btn-ghost" onclick="window.LeadChat && window.LeadChat.open()">💬 Chat with Amanda</button>
+    </div>
+    <div class="hero-proof">Free consultations · <strong>No HOA</strong> on most builds · Locally owned</div>
+  </div>
+</div>
+
+<section id="homes">
+  <div class="kicker">What we build</div>
+  <h2>Two Ways Home</h2>
+  <p class="sub">Whether you own land or need a homesite, there's a Willrich path to your front door.</p>
+  <div class="grid">
+    <div class="card"><div class="rule"></div><h3 class="sans">Custom Home Builds</h3><p>Your land, your vision. We build from your plans with the finishes you choose — granite counters, luxury vinyl plank, tiled showers, open-concept layouts. One team from first sketch to final walkthrough.</p></div>
+    <div class="card"><div class="rule"></div><h3 class="sans">Move-In-Ready Spec Homes</h3><p>Designer-finished homes in Macclenny, ready when you are. Close in 30–45 days. Recent builds feature 3–4 bedrooms, 2-car garages, paver driveways, and no HOA.</p></div>
+    <div class="card"><div class="rule"></div><h3 class="sans">Build on Your Land</h3><p>Own acreage in Baker County? We'll evaluate your lot for free before you commit — and handle everything from clearing to keys.</p></div>
+    <div class="card"><div class="rule"></div><h3 class="sans">Open-Concept Living</h3><p>Every Willrich home is designed around how families actually live: flowing great rooms, kitchens made for gathering, and natural light everywhere.</p></div>
+    <div class="card"><div class="rule"></div><h3 class="sans">Quality Finishes Standard</h3><p>Granite countertops, luxury vinyl plank flooring, full appliance packages, and tiled showers — not upgrades, standard.</p></div>
+    <div class="card"><div class="rule"></div><h3 class="sans">Financing Guidance</h3><p>One-time-close construction loans, USDA $0-down options for qualifying Baker County buyers, and introductions to local lenders who know new construction.</p></div>
+  </div>
+</section>
+
+<section id="featured">
+  <div class="kicker">Featured build</div>
+  <h2>See What We Mean</h2>
+  <p class="sub">A recent Willrich spec home — this is the standard, not the upgrade package.</p>
+  <div class="feature">
+    <div>
+      <h3 class="sans">The Shuey Avenue Home</h3>
+      <div class="addr sans">464 E Shuey Avenue, Macclenny, FL 32063</div>
+      <ul class="specs">
+        <li><strong>Bedrooms / Baths</strong> 3 bed · 2.5 bath</li>
+        <li><strong>Living area</strong> 1,954 sq ft</li>
+        <li><strong>Layout</strong> Gorgeous open floor plan</li>
+        <li><strong>Kitchen</strong> Granite countertops · full appliance package</li>
+        <li><strong>Flooring</strong> Luxury vinyl plank throughout</li>
+        <li><strong>Baths</strong> Tiled showers</li>
+        <li><strong>Garage</strong> Two-car · paver driveway</li>
+        <li><strong>HOA</strong> None</li>
+      </ul>
+      <div class="cta-row" style="justify-content:flex-start">
+        <button class="btn btn-gold" onclick="window.LeadChat && window.LeadChat.open()">💬 Ask about similar homes</button>
+      </div>
+    </div>
+    <div class="visual">
+      <img src="/site/logo.jpg" alt="Willrich Homes — Making Dreams Come True">
+    </div>
+  </div>
+</section>
+
+<section id="process">
+  <div class="kicker">How it works</div>
+  <h2>From Dream to Doorstep</h2>
+  <p class="sub">A straightforward process with a local team you can actually reach.</p>
+  <div class="steps">
+    <div class="step"><div class="num">01</div><h3 class="sans">Free Consultation</h3><p>Tell us what you're dreaming of — custom plans or a spec home. We'll talk numbers honestly.</p></div>
+    <div class="step"><div class="num">02</div><h3 class="sans">Design &amp; Plan</h3><p>Floor plans, finishes, and lot evaluation. Every detail decided before we break ground.</p></div>
+    <div class="step"><div class="num">03</div><h3 class="sans">Build</h3><p>Local crews, regular updates, and a walkthrough at every major milestone.</p></div>
+    <div class="step"><div class="num">04</div><h3 class="sans">Welcome Home</h3><p>Final walkthrough, keys in hand, and a builder who still answers the phone after.</p></div>
+  </div>
+</section>
+
+<section id="reviews">
+  <div class="kicker">Word of mouth</div>
+  <h2>Neighbors Talking</h2>
+  <p class="sub">What folks around Macclenny are saying.</p>
+  <div class="quote"><p>"They've done it again — a gorgeous open floor plan. Willrich Homes really does make dreams come true!"</p><cite>— Rebekah M., Macclenny</cite></div>
+  <div class="quote"><p>"From the first meeting to move-in day, everything was straightforward. The finishes are beautiful and the whole process felt personal."</p><cite>— Recent Willrich homeowner</cite></div>
+</section>
+
+<div class="band" id="contact">
+  <h2>Let's Talk About Your Home</h2>
+  <p>Free consultation — no pressure, just honest answers about building in Baker County.</p>
+  <div class="cta-row">
+    <a class="btn btn-dark" href="tel:+19044080421">📞 Call (904) 408-0421</a>
+    <button class="btn btn-gold" onclick="window.LeadChat && window.LeadChat.open()">💬 Start chatting now</button>
+  </div>
+</div>
+
+<footer>
+  <p class="fname">WILLRICH HOMES LLC</p>
+  <p class="ftag">Making Dreams Come True</p>
+  <p style="margin-top:14px">Macclenny &amp; Baker County, Florida</p>
+  <p><a href="tel:+19044080421">(904) 408-0421</a> · <a href="mailto:willrichhomes@gmail.com">willrichhomes@gmail.com</a></p>
+  <p style="margin-top:12px; font-size:12px; opacity:.6">Demo site for the AI lead-capture system.</p>
+</footer>
+
+<!-- The entire AI receptionist: one script tag. -->
+<script src="/widget/chat-widget.js"
+        data-business-name="Willrich Homes"
+        data-agent-name="Amanda"></script>
+
+</body>
+</html>
