@@ -40,11 +40,25 @@ const FEE_RECIPIENT_BUYBACK = new PublicKey(
 
 let _connection = null;
 
-/** Shared Connection (devnet by default — see config.js). */
+/** Shared Connection with fallback RPCs (public devnet is often congested). */
+const FALLBACK_RPCS = [
+  "https://api.devnet.solana.com",
+  "https://devnet.helius-rpc.com/?api-key=public",
+  "https://rpc.ankr.com/solana_devnet",
+];
+let _rpcIndex = 0;
+
 export function getConnection() {
   if (!_connection) {
-    _connection = new Connection(CONFIG.rpcUrl, "confirmed");
+    _connection = new Connection(FALLBACK_RPCS[_rpcIndex], "confirmed");
   }
+  return _connection;
+}
+
+/** Switch to the next RPC endpoint when the current one is congested. */
+export function rotateRpc() {
+  _rpcIndex = (_rpcIndex + 1) % FALLBACK_RPCS.length;
+  _connection = new Connection(FALLBACK_RPCS[_rpcIndex], "confirmed");
   return _connection;
 }
 
@@ -108,16 +122,25 @@ export async function fetchCurveState(connection, mint) {
  * RPC call fails — callers should catch and show a graceful message.
  */
 export async function fetchCurveProgress(mint) {
-  const curve = await fetchCurveState(getConnection(), mint);
-  const solInCurveLamports = curve.realSolReserves.toNumber();
-  const tokensSoldBaseUnits = curve.tokenTotalSupply
-    .sub(curve.realTokenReserves)
-    .toNumber();
-  return {
-    solInCurveLamports,
-    tokensSoldBaseUnits,
-    graduated: curve.complete,
-  };
+  let lastErr;
+  for (let attempt = 0; attempt < FALLBACK_RPCS.length; attempt++) {
+    try {
+      const curve = await fetchCurveState(getConnection(), mint);
+      const solInCurveLamports = curve.realSolReserves.toNumber();
+      const tokensSoldBaseUnits = curve.tokenTotalSupply
+        .sub(curve.realTokenReserves)
+        .toNumber();
+      return {
+        solInCurveLamports,
+        tokensSoldBaseUnits,
+        graduated: curve.complete,
+      };
+    } catch (e) {
+      lastErr = e;
+      if (attempt < FALLBACK_RPCS.length - 1) rotateRpc();
+    }
+  }
+  throw lastErr;
 }
 
 /**
