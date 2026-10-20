@@ -1013,9 +1013,9 @@ async fn simulate_handler(Json(req): Json<BuildRequest>) -> ApiResult<SimulateRe
 /// Fee wallet for launchpad payments (SOL).
 const LAUNCHPAD_PAYMENT_WALLET: &str = "2q4EwekHtit3BtzL25NmGbWJ5khPkmypYbba2t3A4XtM";
 const LAUNCHPAD_BASE_FEE_LAMPORTS: u64 = 200_000_000; // 0.2 SOL
-const LAUNCHPAD_DEEP_VEIL_LAMPORTS: u64 = 100_000_000; // 0.1 SOL
-const LAUNCHPAD_EXTRA_WALLET_LAMPORTS: u64 = 50_000_000; // 0.05 SOL each
-const LAUNCHPAD_RADAR_WATCH_LAMPORTS: u64 = 50_000_000; // 0.05 SOL
+const LAUNCHPAD_DEEP_VEIL_LAMPORTS: u64 = 200_000_000; // 0.2 SOL
+const LAUNCHPAD_EXTRA_WALLET_LAMPORTS: u64 = 100_000_000; // 0.1 SOL each
+const LAUNCHPAD_RADAR_WATCH_LAMPORTS: u64 = 100_000_000; // 0.1 SOL
 /// Max buyer wallets per launch (1 create + N buys must fit the 5-tx bundle).
 const LAUNCHPAD_MAX_BUYERS: u8 = 4;
 
@@ -1444,9 +1444,9 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
   <table>
     <tr><th>Fee</th><th>Amount</th></tr>
     <tr><td>Base launch (Cloak stealth included)</td><td>0.2 SOL</td></tr>
-    <tr><td>Deep Veil add-on (3 hops, max jitter, wide slot spread)</td><td>+0.1 SOL</td></tr>
-    <tr><td>Extra stealth wallet (each)</td><td>+0.05 SOL</td></tr>
-    <tr><td>Radar sniper-watch add-on</td><td>+0.05 SOL</td></tr>
+    <tr><td>Deep Veil add-on (3 hops, max jitter, wide slot spread)</td><td>+0.2 SOL</td></tr>
+    <tr><td>Extra stealth wallet (each)</td><td>+0.1 SOL</td></tr>
+    <tr><td>Radar sniper-watch add-on</td><td>+0.1 SOL</td></tr>
   </table>
   <p>The dev buy (optional) is split across the stealth buyer wallets, which
   the server generates fresh per launch — their secrets are returned one-time
@@ -2436,13 +2436,13 @@ mod tests {
             radar_watch: None,
         });
         assert_eq!(launchpad_fee_lamports(&none_addons), 200_000_000);
-        // Everything: 0.2 + 0.1 + 3*0.05 + 0.05 = 0.5 SOL.
+        // Everything: 0.2 + 0.2 + 3*0.1 + 0.1 = 0.8 SOL.
         let full = Some(LaunchpadAddons {
             deep_veil: Some(true),
             extra_wallets: Some(3),
             radar_watch: Some(true),
         });
-        assert_eq!(launchpad_fee_lamports(&full), 500_000_000);
+        assert_eq!(launchpad_fee_lamports(&full), 800_000_000);
         // Explicit false / zero adds nothing.
         let empty = Some(LaunchpadAddons {
             deep_veil: Some(false),
