@@ -6,7 +6,58 @@
  */
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { PublicKey } from "@solana/web3.js";
 import { CONFIG } from "./config.js";
+
+/**
+ * In the Solflare mobile app's built-in browser, window.solflare is injected
+ * directly. Talking to it directly is far more reliable than routing through
+ * the wallet-adapter SDK's popup/iframe machinery (which is built for desktop
+ * extensions and breaks on mobile — signing returns garbage).
+ */
+function getInjectedSolflare() {
+  try {
+    const p = window.solflare;
+    return p && p.isSolflare ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Thin wrapper: normalizes the injected provider to our PublicKey class. */
+class InjectedSolflareWallet {
+  constructor(provider) {
+    this.p = provider;
+    this._onDisconnect = [];
+  }
+  get publicKey() {
+    const pk = this.p.publicKey;
+    return pk ? new PublicKey(pk.toBytes()) : null;
+  }
+  get connected() {
+    return !!this.p.connected && !!this.p.publicKey;
+  }
+  async connect() {
+    if (!this.p.connected) await this.p.connect();
+    return this.publicKey;
+  }
+  async disconnect() {
+    try {
+      await this.p.disconnect();
+    } catch {
+      /* already gone */
+    }
+  }
+  on(event, fn) {
+    if (event === "disconnect" && this.p.on) this.p.on("disconnect", fn);
+  }
+  async signTransaction(tx) {
+    return await this.p.signTransaction(tx);
+  }
+  async signAllTransactions(txs) {
+    return await this.p.signAllTransactions(txs);
+  }
+}
 
 const WALLET_DEFS = [
   {
@@ -47,6 +98,7 @@ export class WalletManager {
 
   _isDetected(name) {
     try {
+      if (name === "Solflare" && getInjectedSolflare()) return true;
       const a = this._adapter(name);
       // Most adapters expose `readyState`; "Installed"/"Loadable" counts.
       return a.readyState === "Installed" || a.readyState === "Loadable";
@@ -92,6 +144,33 @@ export class WalletManager {
 
   /** Connect to a named wallet. Throws a user-friendly Error on failure. */
   async connect(name) {
+    // Prefer the injected provider (Solflare mobile in-app browser) —
+    // direct, no popup/iframe machinery.
+    if (name === "Solflare") {
+      const injected = getInjectedSolflare();
+      if (injected) {
+        try {
+          const w = new InjectedSolflareWallet(injected);
+          await w.connect();
+          this.current = w;
+          this.currentName = name;
+          try {
+            localStorage.setItem(STORAGE_KEY, name);
+          } catch {
+            /* private mode — ignore */
+          }
+          w.on("disconnect", () => {
+            this.current = null;
+            this.currentName = null;
+            this._emit("disconnect");
+          });
+          this._emit("connect", { publicKey: w.publicKey, name });
+          return w.publicKey;
+        } catch (e) {
+          throw new Error(`Could not connect to ${name}: ${e?.message || e}`);
+        }
+      }
+    }
     const adapter = this._adapter(name);
     if (!adapter.connected) {
       try {
@@ -156,6 +235,17 @@ export class WalletManager {
     }
     if (!saved) return null;
     try {
+      // Injected provider first (mobile in-app browser).
+      if (saved === "Solflare") {
+        const injected = getInjectedSolflare();
+        if (injected && injected.connected && injected.publicKey) {
+          const w = new InjectedSolflareWallet(injected);
+          this.current = w;
+          this.currentName = saved;
+          this._emit("connect", { publicKey: w.publicKey, name: saved });
+          return w.publicKey;
+        }
+      }
       const adapter = this._adapter(saved);
       // Only attempt if the extension is present; never force a popup.
       if (adapter.readyState !== "Installed") return null;
