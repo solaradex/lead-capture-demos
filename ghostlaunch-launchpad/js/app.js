@@ -775,7 +775,9 @@ function miniCurveBar(s) {
 }
 
 function renderTicker() {
-  document.getElementById("ticker").innerHTML = DEMO_TOKENS.map(
+  const el = document.getElementById("ticker");
+  if (!el) return; // ticker section removed
+  el.innerHTML = DEMO_TOKENS.map(
     (t, i) => `<div class="ticker-chip" title="${esc(t.name)}">
       <div class="ticker-top">
         <span class="ticker-icon">${esc(t.symbol.slice(0, 2))}</span>
