@@ -192,6 +192,8 @@ code { background: rgba(0,229,255,.08); padding: 2px 6px; border-radius: 6px; fo
 }
 .field input:focus, .field textarea:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,229,255,.15); }
 .field input[type="range"] { width: 100%; accent-color: var(--cyan); height: 32px; }
+.field input[type="range"]:disabled { opacity: .35; }
+.stealth-row:has(input:disabled) { opacity: .55; }
 
 .stealth-row {
   display: flex; align-items: flex-start; gap: 12px;

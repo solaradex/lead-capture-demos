@@ -193,7 +193,7 @@ function wireForm() {
 
   // Stealth sliders.
   const w = document.getElementById("f-wallets");
-  w.oninput = () => (document.getElementById("wallets-val").textContent = w.value);
+  w.oninput = () => { syncStealthControls(); };
   const j = document.getElementById("f-jitter");
   j.oninput = () => (document.getElementById("jitter-val").textContent = `±${j.value}%`);
   const d = document.getElementById("f-devbuy");
@@ -254,7 +254,8 @@ function updateTotal() {
 }
 
 function wireAddons() {
-  document.getElementById("addon-deepveil").onchange = updateTotal;
+  const dv = document.getElementById("addon-deepveil");
+  dv.onchange = () => { updateTotal(); syncStealthControls(); };
   document.getElementById("addon-radar").onchange = updateTotal;
 
   const qtyEl = document.getElementById("wallets-qty");
@@ -265,8 +266,9 @@ function wireAddons() {
     minus.disabled = q <= 0;
     plus.disabled = q >= MAX_EXTRA_WALLETS;
     document.getElementById("addon-wallets-card").style.borderColor =
-      q > 0 ? "var(--purple)" : "";
+      q > 0 ? "var(--cyan)" : "";
     updateTotal();
+    syncStealthControls();
   };
   minus.onclick = () => {
     qtyEl.textContent = Math.max(0, (parseInt(qtyEl.textContent, 10) || 0) - 1);
@@ -277,6 +279,36 @@ function wireAddons() {
     refresh();
   };
   refresh();
+}
+
+/* Keeps Step 2 (Cloak Stealth) honest with Step 3 (Boost) add-ons:
+   - Deep Veil overrides jitter to max + forces 3 hops/widest spread, so the
+     Step 2 jitter slider and spread checkbox get disabled while it's on.
+   - Extra wallets ADD to the Step 2 slider, so the label shows the combined total. */
+function syncStealthControls() {
+  const deepVeil = document.getElementById("addon-deepveil").checked;
+  const extra = parseInt(document.getElementById("wallets-qty").textContent, 10) || 0;
+
+  const j = document.getElementById("f-jitter");
+  const s = document.getElementById("f-spread");
+  j.disabled = deepVeil;
+  s.disabled = deepVeil;
+  let note = document.getElementById("deepveil-note");
+  if (deepVeil && !note) {
+    note = document.createElement("p");
+    note.id = "deepveil-note";
+    note.className = "tiny";
+    note.style.color = "var(--cyan)";
+    note.textContent = "Deep Veil is on — it sets maximum jitter, 3-hop chains, and the widest spread automatically.";
+    j.closest(".field").appendChild(note);
+  } else if (!deepVeil && note) {
+    note.remove();
+  }
+
+  const w = document.getElementById("f-wallets");
+  const base = parseInt(w.value, 10) || 0;
+  const label = document.getElementById("wallets-val");
+  label.textContent = extra > 0 ? `${base} + ${extra} extra = ${base + extra}` : `${base}`;
 }
 
 async function onConfirm() {
