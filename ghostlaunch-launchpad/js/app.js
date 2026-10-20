@@ -185,7 +185,7 @@ function wireForm() {
 
 /* ------------------------------ add-on total ------------------------------ */
 
-const ADDON_PRICES = { deepVeil: 0.1, extraWallet: 0.05, radarWatch: 0.05 };
+const ADDON_PRICES = { deepVeil: 0.2, extraWallet: 0.1, radarWatch: 0.1 };
 const MAX_EXTRA_WALLETS = 5;
 
 function getAddons() {
