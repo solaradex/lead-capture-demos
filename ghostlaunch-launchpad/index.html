@@ -108,34 +108,38 @@
         <div class="eyebrow">01 / TOKEN IDENTITY</div>
         <div class="step-head"><span class="step-n">1</span><h2>Token Identity</h2></div>
 
-        <div class="field-row">
+        <div class="identity-grid">
+          <div class="identity-main">
+            <div class="field-row">
+              <div class="field">
+                <label for="f-name">Token Name</label>
+                <input id="f-name" type="text" maxlength="32" placeholder="e.g. Moon Cat" autocomplete="off">
+              </div>
+              <div class="field short">
+                <label for="f-symbol">Symbol</label>
+                <input id="f-symbol" type="text" maxlength="13" placeholder="MCAT" autocomplete="off" style="text-transform:uppercase">
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="f-image">Token Logo</label>
+              <div class="img-upload" id="img-upload" role="button" tabindex="0" aria-label="Upload token logo">
+                <input type="file" id="f-image" accept="image/*" hidden>
+                <div class="img-preview" id="img-preview"><span class="img-ghost"><svg class="logo-ghost" width="30" height="36" viewBox="0 0 40 48" fill="none" aria-hidden="true"><defs><linearGradient id="glg-p" x1="6" y1="7" x2="34" y2="41" gradientUnits="userSpaceOnUse"><stop offset="0.15" stop-color="#00e5ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient><clipPath id="glc-p"><path d="M 0 20 Q 0 0 20 0 L 20 0 Q 40 0 40 20 L 40 43 Q 40 48 35 48 L 5 48 Q 0 48 0 43 Z"/></clipPath></defs><path d="M 0 20 Q 0 0 20 0 L 20 0 Q 40 0 40 20 L 40 43 Q 40 48 35 48 L 5 48 Q 0 48 0 43 Z" fill="url(#glg-p)"/><g clip-path="url(#glc-p)"><rect x="10" y="17" width="5" height="9" rx="3" fill="#050508"/><rect x="25" y="17" width="5" height="9" rx="3" fill="#050508"/><rect x="-4" y="36" width="50" height="4" fill="#050508" transform="rotate(-18 21 38)"/></g></svg></span><span class="img-hint">Tap to upload</span></div>
+              </div>
+              <div class="field" style="margin-top:10px">
+                <label for="f-imgurl">…or paste an image URL <span class="muted">(optional)</span></label>
+                <input type="text" id="f-imgurl" placeholder="https://…/logo.png" autocomplete="off" spellcheck="false">
+              </div>
+              <p class="tiny muted">Logo is optional for now — IPFS pinning ships soon.
+              Uploads preview locally; launches use a placeholder metadata URI until then.</p>
+            </div>
+          </div>
+
           <div class="field">
-            <label for="f-name">Token Name</label>
-            <input id="f-name" type="text" maxlength="32" placeholder="e.g. Moon Cat" autocomplete="off">
+            <label for="f-desc">Description <span class="muted">(optional)</span></label>
+            <textarea id="f-desc" rows="2" placeholder="What's the story behind this coin?"></textarea>
           </div>
-          <div class="field short">
-            <label for="f-symbol">Symbol</label>
-            <input id="f-symbol" type="text" maxlength="13" placeholder="MCAT" autocomplete="off" style="text-transform:uppercase">
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="f-desc">Description <span class="muted">(optional)</span></label>
-          <textarea id="f-desc" rows="2" placeholder="What's the story behind this coin?"></textarea>
-        </div>
-
-        <div class="field">
-          <label for="f-image">Token Logo</label>
-          <div class="img-upload" id="img-upload" role="button" tabindex="0" aria-label="Upload token logo">
-            <input type="file" id="f-image" accept="image/*" hidden>
-            <div class="img-preview" id="img-preview"><span class="img-ghost"><svg class="logo-ghost" width="30" height="36" viewBox="0 0 40 48" fill="none" aria-hidden="true"><defs><linearGradient id="glg-p" x1="6" y1="7" x2="34" y2="41" gradientUnits="userSpaceOnUse"><stop offset="0.15" stop-color="#00e5ff"/><stop offset="1" stop-color="#7c3aed"/></linearGradient><clipPath id="glc-p"><path d="M 0 20 Q 0 0 20 0 L 20 0 Q 40 0 40 20 L 40 43 Q 40 48 35 48 L 5 48 Q 0 48 0 43 Z"/></clipPath></defs><path d="M 0 20 Q 0 0 20 0 L 20 0 Q 40 0 40 20 L 40 43 Q 40 48 35 48 L 5 48 Q 0 48 0 43 Z" fill="url(#glg-p)"/><g clip-path="url(#glc-p)"><rect x="10" y="17" width="5" height="9" rx="3" fill="#050508"/><rect x="25" y="17" width="5" height="9" rx="3" fill="#050508"/><rect x="-4" y="36" width="50" height="4" fill="#050508" transform="rotate(-18 21 38)"/></g></svg></span><span class="img-hint">Tap to upload</span></div>
-          </div>
-          <div class="field" style="margin-top:10px">
-            <label for="f-imgurl">…or paste an image URL <span class="muted">(optional)</span></label>
-            <input type="text" id="f-imgurl" placeholder="https://…/logo.png" autocomplete="off" spellcheck="false">
-          </div>
-          <p class="tiny muted">Logo is optional for now — IPFS pinning ships soon.
-          Uploads preview locally; launches use a placeholder metadata URI until then.</p>
         </div>
       </div>
 

@@ -176,6 +176,14 @@ code { background: rgba(0,229,255,.08); padding: 2px 6px; border-radius: 6px; fo
 .field-row { display: flex; gap: 12px; }
 .field-row .field { flex: 1; min-width: 0; }
 .field-row .short { max-width: 130px; flex-shrink: 0; }
+.identity-grid { display: grid; gap: 16px; }
+@media (min-width: 720px) {
+  .identity-grid { grid-template-columns: 1fr 220px; align-items: start; }
+  .identity-grid .identity-main { display: contents; }
+  .identity-grid .identity-main .field-row { grid-column: 1; grid-row: 1; }
+  .identity-grid .identity-main .field { grid-column: 1; }
+  .identity-grid > .field { grid-column: 2; grid-row: 1 / span 2; }
+}
 .field label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
 .field input[type="text"], .field textarea {
   width: 100%; background: var(--bg); border: 1px solid var(--border);
