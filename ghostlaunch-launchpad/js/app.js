@@ -699,21 +699,54 @@ async function runLaunch(draft) {
   const mintKp = keypairFromB58(build.mint_secret_key);
   ephemeral.set(mintKp.publicKey.toBase58(), mintKp);
 
-  // 3. Fund the stealth chains, in backend submit order.
+  // 3+4. Batch-sign ALL creator transactions in ONE wallet popup, then send sequentially.
+  // The fee was already paid (that's the auth). Now: funding transfers + token creation
+  // all get signed together — one popup instead of one per transaction.
   const funding = build.stealth?.funding_transactions ?? [];
+  const createTx = build.transactions.find((t) => t.kind === "create");
+  if (!createTx) throw new Error("Backend returned no create transaction.");
+
+  // Decode and prepare everything upfront.
+  const toSign = [];
+  for (const ft of funding) {
+    const vtx = decodeUnsignedTx(ft.base64);
+    await refreshBlockhash(connection, vtx);
+    toSign.push({ vtx, requiredSigners: ft.required_signers, kind: "funding" });
+  }
+  const createVtx = decodeUnsignedTx(createTx.base64);
+  await refreshBlockhash(connection, createVtx);
+  toSign.push({ vtx: createVtx, requiredSigners: createTx.required_signers, kind: "create" });
+
+  // Single wallet popup for everything the creator must sign.
+  lpSetStep("fund", "active", "Sign once in your wallet — funding + token creation…");
+  const creatorTxns = toSign.filter((t) => t.requiredSigners.includes(creatorStr));
+  if (creatorTxns.length) {
+    const signed = await wallet.signAllTransactions(creatorTxns.map((t) => t.vtx));
+    signed.forEach((stx, i) => { creatorTxns[i].vtx = stx; });
+  }
+  // Ephemeral keys (hop/buyer/mint) sign their slots — no wallet needed.
+  for (const t of toSign) {
+    const kps = [];
+    for (const s of t.requiredSigners) {
+      if (s !== creatorStr) {
+        const kp = ephemeral.get(s);
+        if (!kp) throw new Error(`Missing one-time key for ${shortAddr(s)} — cannot sign.`);
+        kps.push(kp);
+      }
+    }
+    if (kps.length) t.vtx.sign(kps);
+  }
+
+  // Send funding transfers in order.
   if (funding.length) {
     const totalFunding = build.stealth.total_funding_sol;
     lpSetStep("fund", "active", `0/${funding.length} — ~${totalFunding.toFixed(3)} SOL leaves your wallet (your dev buy + hop fees; hops end at zero)`);
     let i = 0;
-    for (const ft of funding) {
+    for (const t of toSign.filter((x) => x.kind === "funding")) {
       i += 1;
       lpSetStep("fund", "active", `${i}/${funding.length} — funding transfer ${i}…`);
-      const vtx = decodeUnsignedTx(ft.base64);
-      await refreshBlockhash(connection, vtx);
-      const signed = await signBackendTx(vtx, ft.required_signers, ephemeral, creatorStr);
-      await sendSignedTx(connection, signed);
-      // One-time hop keys are discarded the moment they've signed.
-      for (const s of ft.required_signers) {
+      await sendSignedTx(connection, t.vtx);
+      for (const s of t.requiredSigners) {
         if (s !== creatorStr && s !== mintKp.publicKey.toBase58()) ephemeral.delete(s);
       }
     }
@@ -722,13 +755,9 @@ async function runLaunch(draft) {
     lpSetStep("fund", "done", "No dev buy — nothing to fund");
   }
 
-  // 4. Create.
-  lpSetStep("create", "active", "Sign the token creation…");
-  const createTx = build.transactions.find((t) => t.kind === "create");
-  if (!createTx) throw new Error("Backend returned no create transaction.");
-  const createVtx = decodeUnsignedTx(createTx.base64);
-  await refreshBlockhash(connection, createVtx);
-  const createSigned = await signBackendTx(createVtx, createTx.required_signers, ephemeral, creatorStr);
+  // Send the token creation.
+  lpSetStep("create", "active", "Creating your token…");
+  const createSigned = toSign.find((t) => t.kind === "create").vtx;
   const createSig = await sendSignedTx(connection, createSigned);
   ephemeral.delete(mintKp.publicKey.toBase58());
   lpSetStep("create", "done", `Token created ✓`);
@@ -759,8 +788,16 @@ async function runLaunch(draft) {
       if (!t) throw new Error(`Backend schedule points at missing tx ${s.transaction_index}.`);
       const vtx = decodeUnsignedTx(t.base64);
       await refreshBlockhash(connection, vtx);
-      const signed = await signBackendTx(vtx, t.required_signers, ephemeral, creatorStr);
-      await sendSignedTx(connection, signed);
+      // Buys are signed by the disposable buyer wallets only — never the creator's wallet.
+      const kps = [];
+      for (const sg of t.required_signers) {
+        if (sg === creatorStr) throw new Error("Buy transaction unexpectedly requires creator signature.");
+        const kp = ephemeral.get(sg);
+        if (!kp) throw new Error(`Missing one-time key for ${shortAddr(sg)} — cannot sign.`);
+        kps.push(kp);
+      }
+      if (kps.length) vtx.sign(kps);
+      await sendSignedTx(connection, vtx);
       ephemeral.delete(s.wallet);
     }
     lpSetStep("buys", "done", `${schedule.length} stealth buys confirmed ✓`);
