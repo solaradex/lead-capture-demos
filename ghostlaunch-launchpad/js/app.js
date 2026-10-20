@@ -48,12 +48,27 @@ export function shortAddr(addr) {
   return s.length > 12 ? `${s.slice(0, 4)}…${s.slice(-4)}` : s;
 }
 
+let ghostLogoUid = 0;
+/* Spectral Ghost Mark — matches the Framer marketing site logo exactly:
+   40x48 ghost, 145deg gradient #00e5ff -> #7c3aed, dark eyes + diagonal veil. */
 function ghostLogo(size = 28) {
-  return `<svg class="logo-ghost" width="${size}" height="${size}" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-    <path d="M16 3C9.4 3 4 8.6 4 15.5V27l3.6-3 3.4 3 3.5-3 3.5 3 3.4-3 3.6 3V15.5C28 8.6 22.6 3 16 3Z" fill="url(#gg)"/>
-    <circle cx="11.5" cy="14.5" r="2.2" fill="#0a0a12"/>
-    <circle cx="20.5" cy="14.5" r="2.2" fill="#0a0a12"/>
-    <defs><linearGradient id="gg" x1="4" y1="3" x2="28" y2="27"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#2dd4bf"/></linearGradient></defs>
+  const h = Math.round((size * 48) / 40);
+  const u = ++ghostLogoUid;
+  return `<svg class="logo-ghost" width="${size}" height="${h}" viewBox="0 0 40 48" fill="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="glg${u}" x1="6" y1="7" x2="34" y2="41" gradientUnits="userSpaceOnUse">
+        <stop offset="0.15" stop-color="#00e5ff"/><stop offset="1" stop-color="#7c3aed"/>
+      </linearGradient>
+      <clipPath id="glc${u}">
+        <path d="M 0 20 Q 0 0 20 0 L 20 0 Q 40 0 40 20 L 40 43 Q 40 48 35 48 L 5 48 Q 0 48 0 43 Z"/>
+      </clipPath>
+    </defs>
+    <path d="M 0 20 Q 0 0 20 0 L 20 0 Q 40 0 40 20 L 40 43 Q 40 48 35 48 L 5 48 Q 0 48 0 43 Z" fill="url(#glg${u})"/>
+    <g clip-path="url(#glc${u})">
+      <rect x="10" y="17" width="5" height="9" rx="3" fill="#050508"/>
+      <rect x="25" y="17" width="5" height="9" rx="3" fill="#050508"/>
+      <rect x="-4" y="36" width="50" height="4" fill="#050508" transform="rotate(-18 21 38)"/>
+    </g>
   </svg>`;
 }
 
