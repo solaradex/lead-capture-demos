@@ -145,28 +145,6 @@ function closeModal() {
   document.getElementById("modal-root").innerHTML = "";
 }
 
-/* ------------------------------ hero → form ------------------------------- */
-
-function onHeroCta() {
-  const name = document.getElementById("hero-name").value.trim();
-  const symbol = document.getElementById("hero-symbol").value.trim().toUpperCase();
-
-  const form = document.getElementById("launch-form");
-  const wasHidden = form.classList.contains("hidden");
-  form.classList.remove("hidden");
-
-  // Carry the hero values into the form (don't clobber edits on re-click).
-  if (name && !document.getElementById("f-name").value) {
-    document.getElementById("f-name").value = name;
-  }
-  if (symbol && !document.getElementById("f-symbol").value) {
-    document.getElementById("f-symbol").value = symbol;
-  }
-
-  form.scrollIntoView({ behavior: "smooth", block: "start" });
-  if (wasHidden) toast("👻 Nice — now make it yours.", "success");
-}
-
 /* --------------------------------- form ----------------------------------- */
 
 function wireForm() {
@@ -925,7 +903,6 @@ function wireLiquidityChecker() {
 
 document.getElementById("logo").innerHTML = `${ghostLogo(28)}<span>GhostLaunch</span>`;
 document.getElementById("net-badge").textContent = CONFIG.network.toUpperCase() + "NET";
-document.getElementById("hero-cta").onclick = onHeroCta;
 
 renderWalletButtons();
 wireForm();
