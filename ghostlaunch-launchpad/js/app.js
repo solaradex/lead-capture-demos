@@ -286,6 +286,8 @@ async function onConfirm() {
   const name = document.getElementById("f-name").value.trim();
   const symbol = document.getElementById("f-symbol").value.trim().toUpperCase();
   const desc = document.getElementById("f-desc").value.trim();
+  const website = document.getElementById("f-website").value.trim();
+  const twitter = document.getElementById("f-twitter").value.trim();
 
   if (!name) {
     toast("Give your token a name.", "error");
@@ -334,6 +336,8 @@ async function onConfirm() {
     name,
     symbol,
     desc,
+    website,
+    twitter,
     tokenUri,
     stealth: stealthOn,
     wallets: custom ? parseInt(document.getElementById("f-wallets").value, 10) : 3,
@@ -644,6 +648,8 @@ async function runLaunch(draft) {
     token_name: draft.name,
     token_symbol: draft.symbol,
     token_uri: draft.tokenUri,
+    token_website: draft.website || null,
+    token_twitter: draft.twitter || null,
     creator_pubkey: creatorStr,
     dev_buy_sol: draft.devBuySol,
     rpc_url: CONFIG.rpcUrl,
