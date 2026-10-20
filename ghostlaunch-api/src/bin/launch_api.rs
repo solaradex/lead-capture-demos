@@ -780,7 +780,9 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
 
   <h2>Pricing</h2>
   <p><span class="price">Creators: 0.2 SOL per launch</span>, flat — stealth included.<br>
-  <span class="price">Platforms: 0.05 SOL per launch</span>, wholesale via API. You set your retail price and keep the spread.</p>
+  <span class="price">Platforms: 0.05 SOL per launch</span>, wholesale via API. You set your retail price and keep the spread.<br>
+  <b>Payment wallet (SOL):</b> <code>2q4EwekHtit3BtzL25NmGbWJ5khPkmypYbba2t3A4XtM</code></p>
+  <p>Send launch fees to this address. Include your platform name or API key in the payment memo so your payment can be matched to your account.</p>
 
   <div class="note">
     <b>Getting an API key:</b> keys are issued to integration partners.
