@@ -175,7 +175,11 @@ function wireForm() {
   const j = document.getElementById("f-jitter");
   j.oninput = () => (document.getElementById("jitter-val").textContent = `±${j.value}%`);
   const d = document.getElementById("f-devbuy");
-  d.oninput = () => (document.getElementById("devbuy-val").textContent = Number(d.value).toFixed(1));
+  d.oninput = () => {
+    document.getElementById("devbuy-val").textContent = Number(d.value).toFixed(1);
+    updateTotal();
+  };
+  document.getElementById("f-stealth").onchange = updateTotal;
 
   // Optional add-ons → running total.
   wireAddons();
@@ -212,11 +216,18 @@ function addonsTotal(a) {
 function updateTotal() {
   const a = getAddons();
   const extra = addonsTotal(a);
-  const total = CONFIG.launchFeeSol + extra;
-  document.getElementById("total-amount").textContent = `${total.toFixed(2)} SOL`;
+  const fee = CONFIG.launchFeeSol + extra;
+  // The opening buy isn't our fee — it goes into the creator's own token —
+  // but it does leave their wallet, so the displayed total must include it.
+  const tier = getStealthTier();
+  const stealthOn = tier === "custom" ? document.getElementById("f-stealth").checked : true;
+  const devBuy = stealthOn ? (parseFloat(document.getElementById("f-devbuy").value) || 0) : 0;
+  const walletTotal = fee + devBuy;
+  document.getElementById("total-amount").textContent = `${walletTotal.toFixed(2)} SOL`;
 
   const summary = document.getElementById("addons-summary");
   const lines = [];
+  lines.push(["Launch fee (stealth included)", `${CONFIG.launchFeeSol.toFixed(2)} SOL`]);
   if (a.deepVeil) lines.push(["Deep Veil", `+${ADDON_PRICES.deepVeil.toFixed(2)} SOL`]);
   if (a.extraWallets > 0)
     lines.push([
@@ -224,16 +235,12 @@ function updateTotal() {
       `+${(a.extraWallets * ADDON_PRICES.extraWallet).toFixed(2)} SOL`,
     ]);
   if (a.radarWatch) lines.push(["Radar sniper-watch", `+${ADDON_PRICES.radarWatch.toFixed(2)} SOL`]);
-  if (lines.length) {
-    summary.classList.remove("hidden");
-    summary.innerHTML =
-      `<div><span>Base launch (stealth included)</span><span>${CONFIG.launchFeeSol.toFixed(2)} SOL</span></div>` +
-      lines.map(([k, v]) => `<div><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
-  } else {
-    summary.classList.add("hidden");
-    summary.innerHTML = "";
-  }
-  return total;
+  if (devBuy > 0) lines.push(["Your opening buy (goes into your token)", `+${devBuy.toFixed(2)} SOL`]);
+  summary.classList.remove("hidden");
+  summary.innerHTML = lines
+    .map(([k, v]) => `<div><span>${esc(k)}</span><span>${esc(v)}</span></div>`)
+    .join("");
+  return fee;
 }
 
 function wireAddons() {
@@ -446,8 +453,8 @@ function openLaunchModal(draft) {
       <div class="modal lp-modal">
         <div class="modal-head"><h3>👻 Launching <strong>${esc(draft.name)}</strong>
           <span class="muted">($${esc(draft.symbol)})</span></h3></div>
-        <p class="tiny muted">Total fee: <strong>${draft.totalSol.toFixed(2)} SOL</strong>
-        → <code class="tiny">${esc(shortAddr(CONFIG.paymentWallet))}</code>.
+        <p class="tiny muted">Fee: <strong>${draft.totalSol.toFixed(2)} SOL</strong>
+        → <code class="tiny">${esc(shortAddr(CONFIG.paymentWallet))}</code>${draft.devBuySol > 0 ? ` plus your <strong>${draft.devBuySol.toFixed(2)} SOL</strong> opening buy (goes into your token)` : ""}.
         Nothing moves until you sign.</p>
         <ol class="lp-steps">${steps}</ol>
         <div id="lp-secret" class="hidden"></div>
@@ -533,7 +540,13 @@ function lpShowResult({ mint, createSig, radarWatchId, name, symbol }) {
 
 function lpFail(e) {
   console.error("[launchpad] launch failed", e);
-  const msg = e?.message || String(e);
+  const raw = e?.message || String(e);
+  // The wallet SDK throws a cryptic type error when it doesn't get a
+  // signature back (wrong network, blocked popup, dismissed approval).
+  // Say what to do instead of showing the raw internals.
+  const msg = /first argument must be one of type/i.test(raw)
+    ? "Your wallet didn't return a signature. Make sure your wallet is on Devnet, reconnect it, and try again — if the approval popup didn't appear, check for a blocked-popup notice."
+    : raw;
   for (const s of LP_STEPS) {
     const li = lpStepEl(s.id);
     if (li?.classList.contains("active")) lpSetStep(s.id, "error", msg);

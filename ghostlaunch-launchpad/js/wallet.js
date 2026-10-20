@@ -6,11 +6,14 @@
  */
 import { SolflareWalletAdapter } from "@solana/wallet-adapter-solflare";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { CONFIG } from "./config.js";
 
 const WALLET_DEFS = [
   {
     name: "Solflare",
-    make: () => new SolflareWalletAdapter(),
+    // Tell the wallet which cluster we're on — without this the SDK
+    // defaults to mainnet-beta and signing breaks on devnet.
+    make: () => new SolflareWalletAdapter({ network: CONFIG.network }),
     recommended: true,
     installUrl: "https://solflare.com",
   },
