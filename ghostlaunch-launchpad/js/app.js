@@ -188,9 +188,14 @@ function wireForm() {
 const ADDON_PRICES = { deepVeil: 0.2, extraWallet: 0.1, radarWatch: 0.1 };
 const MAX_EXTRA_WALLETS = 5;
 
+function getStealthTier() {
+  const el = document.querySelector('input[name="stealth-tier"]:checked');
+  return el ? el.value : "standard";
+}
+
 function getAddons() {
   return {
-    deepVeil: document.getElementById("addon-deepveil").checked,
+    deepVeil: getStealthTier() === "deepveil",
     extraWallets: parseInt(document.getElementById("wallets-qty").textContent, 10) || 0,
     radarWatch: document.getElementById("addon-radar").checked,
   };
@@ -232,8 +237,9 @@ function updateTotal() {
 }
 
 function wireAddons() {
-  const dv = document.getElementById("addon-deepveil");
-  dv.onchange = () => { updateTotal(); syncStealthControls(); };
+  document.querySelectorAll('input[name="stealth-tier"]').forEach((r) => {
+    r.onchange = () => { updateTotal(); syncStealthControls(); };
+  });
   document.getElementById("addon-radar").onchange = updateTotal;
 
   const qtyEl = document.getElementById("wallets-qty");
@@ -259,34 +265,21 @@ function wireAddons() {
   refresh();
 }
 
-/* Keeps Step 2 (Cloak Stealth) honest with Step 3 (Boost) add-ons:
-   - Deep Veil overrides jitter to max + forces 3 hops/widest spread, so the
-     Step 2 jitter slider and spread checkbox get disabled while it's on.
-   - Extra wallets ADD to the Step 2 slider, so the label shows the combined total. */
+/* Keeps the stealth UI honest:
+   - "Deep Veil" tier = backend maxes everything; no sliders to confuse.
+   - "Custom" tier reveals the advanced sliders.
+   - "Standard" tier hides them (sane defaults).
+   - Extra wallets ADD to the effective wallet count shown. */
 function syncStealthControls() {
-  const deepVeil = document.getElementById("addon-deepveil").checked;
+  const tier = getStealthTier();
   const extra = parseInt(document.getElementById("wallets-qty").textContent, 10) || 0;
 
-  const j = document.getElementById("f-jitter");
-  const s = document.getElementById("f-spread");
-  j.disabled = deepVeil;
-  s.disabled = deepVeil;
-  let note = document.getElementById("deepveil-note");
-  if (deepVeil && !note) {
-    note = document.createElement("p");
-    note.id = "deepveil-note";
-    note.className = "tiny";
-    note.style.color = "var(--cyan)";
-    note.textContent = "Deep Veil is on — it sets maximum jitter, 3-hop chains, and the widest spread automatically.";
-    j.closest(".field").appendChild(note);
-  } else if (!deepVeil && note) {
-    note.remove();
-  }
+  document.getElementById("custom-stealth").classList.toggle("hidden", tier !== "custom");
 
   const w = document.getElementById("f-wallets");
-  const base = parseInt(w.value, 10) || 0;
+  const base = tier === "custom" ? (parseInt(w.value, 10) || 0) : 3;
   const label = document.getElementById("wallets-val");
-  label.textContent = extra > 0 ? `${base} + ${extra} extra = ${base + extra}` : `${base}`;
+  if (label) label.textContent = extra > 0 ? `${base} + ${extra} extra = ${base + extra}` : `${base}`;
 }
 
 async function onConfirm() {
@@ -329,7 +322,9 @@ async function onConfirm() {
 
   const addons = getAddons();
   const total = updateTotal();
-  const stealthOn = document.getElementById("f-stealth").checked;
+  const tier = getStealthTier();
+  const custom = tier === "custom";
+  const stealthOn = custom ? document.getElementById("f-stealth").checked : true;
   const devBuyRaw = parseFloat(document.getElementById("f-devbuy").value) || 0;
   // Honest mapping: the backend stealths every dev buy, so "stealth off"
   // means a naked launch with no dev buy at all.
@@ -341,9 +336,9 @@ async function onConfirm() {
     desc,
     tokenUri,
     stealth: stealthOn,
-    wallets: parseInt(document.getElementById("f-wallets").value, 10),
-    jitterPct: parseInt(document.getElementById("f-jitter").value, 10),
-    spread: document.getElementById("f-spread").checked,
+    wallets: custom ? parseInt(document.getElementById("f-wallets").value, 10) : 3,
+    jitterPct: custom ? parseInt(document.getElementById("f-jitter").value, 10) : 5,
+    spread: custom ? document.getElementById("f-spread").checked : true,
     devBuySol,
     addons,
     totalSol: total,

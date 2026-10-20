@@ -136,72 +136,80 @@
           <span class="step-n">2</span>
           <h2>Cloak Stealth <span class="pill">included</span></h2>
         </div>
-        <p class="muted step-sub">Our headline feature — not an upsell. Snipers watch the
-        blockchain for the wallets that fund a launch. Cloak makes sure there's
-        nothing to find.</p>
-
-        <label class="stealth-row" for="f-stealth">
-          <input type="checkbox" id="f-stealth" checked>
-          <span class="stealth-body">
-            <span class="stealth-title">Stealth funding wallets <span class="pill ok">on</span></span>
-            <span class="stealth-desc">Your launch is funded through fresh one-time wallets
-            that end at exactly zero lamports. No on-chain trail back to you — snipers
-            can't tell which wallets are yours.</span>
-          </span>
-        </label>
+        <p class="muted step-sub">Snipers watch the blockchain for the wallets behind a
+        launch. Cloak makes sure there's nothing to find.</p>
 
         <div class="field">
-          <label for="f-wallets">Buyer wallets: <strong id="wallets-val">3</strong></label>
-          <input type="range" id="f-wallets" min="1" max="5" value="3" aria-label="Number of buyer wallets">
-          <p class="tiny muted">More wallets = harder to connect the dots. Each buyer hop
-          uses 1–3 fresh wallets, all ending at zero.</p>
+          <label for="f-devbuy">Your opening buy: <strong><span id="devbuy-val">0.5</span> SOL</strong></label>
+          <input type="range" id="f-devbuy" min="0" max="5" step="0.1" value="0.5" aria-label="Your opening buy in SOL">
+          <p class="tiny muted">How much of your own coin you grab at launch. Split
+          across stealth wallets so it looks like normal traders. Set to 0 for no
+          opening buy.</p>
         </div>
 
         <div class="field">
-          <label for="f-jitter">Amount jitter: <strong id="jitter-val">±5%</strong></label>
-          <input type="range" id="f-jitter" min="0" max="20" value="5" aria-label="Amount jitter percent">
-          <p class="tiny muted">Randomizes buy sizes so snipers can't fingerprint your
-          wallet by its amounts.</p>
+          <label>How invisible?</label>
+          <div class="tier-cards" role="radiogroup" aria-label="Stealth level">
+            <label class="tier-card">
+              <input type="radio" name="stealth-tier" value="standard" checked>
+              <span class="tier-body">
+                <span class="tier-top"><span class="tier-name">Standard</span><span class="tier-price">Included</span></span>
+                <span class="tier-desc">Your buys look like everyday traders. Good cover for most launches.</span>
+              </span>
+            </label>
+            <label class="tier-card">
+              <input type="radio" name="stealth-tier" value="deepveil">
+              <span class="tier-body">
+                <span class="tier-top"><span class="tier-name">Deep Veil</span><span class="tier-price">+0.2 SOL</span></span>
+                <span class="tier-desc">Maximum cover. Funding bounces through 3 disposable wallets per buyer — virtually untraceable.</span>
+              </span>
+            </label>
+            <label class="tier-card">
+              <input type="radio" name="stealth-tier" value="custom">
+              <span class="tier-body">
+                <span class="tier-top"><span class="tier-name">Custom</span><span class="tier-price">Your call</span></span>
+                <span class="tier-desc">Fine-tune every setting yourself — wallets, jitter, timing.</span>
+              </span>
+            </label>
+          </div>
         </div>
 
-        <label class="stealth-row" for="f-spread">
-          <input type="checkbox" id="f-spread" checked>
-          <span class="stealth-body">
-            <span class="stealth-title">Spread buys across slots</span>
-            <span class="stealth-desc">Opening buys land in different slots instead of one
-            bundle — defeats timing analysis. (Trades Jito atomicity; configurable.)</span>
-          </span>
-        </label>
+        <div id="custom-stealth" class="hidden">
+          <label class="stealth-row" for="f-stealth">
+            <input type="checkbox" id="f-stealth" checked>
+            <span class="stealth-body">
+              <span class="stealth-title">Stealth funding wallets <span class="pill ok">on</span></span>
+              <span class="stealth-desc">Fund through fresh one-time wallets that end at
+              exactly zero. No trail back to you.</span>
+            </span>
+          </label>
 
-        <div class="field">
-          <label for="f-devbuy">Dev buy: <strong><span id="devbuy-val">0.5</span> SOL</strong></label>
-          <input type="range" id="f-devbuy" min="0" max="5" step="0.1" value="0.5" aria-label="Dev buy in SOL">
-          <p class="tiny muted">Your own opening buy, split across the stealth buyer
-          wallets above and funded from your wallet. 0 = pure naked launch, no dev buy.
-          (Turning stealth off above also sets this to 0.)</p>
+          <div class="field">
+            <label for="f-wallets">Buyer wallets: <strong id="wallets-val">3</strong></label>
+            <input type="range" id="f-wallets" min="1" max="5" value="3" aria-label="Number of buyer wallets">
+            <p class="tiny muted">More wallets = harder to connect the dots.</p>
+          </div>
+
+          <div class="field">
+            <label for="f-jitter">Amount jitter: <strong id="jitter-val">±5%</strong></label>
+            <input type="range" id="f-jitter" min="0" max="20" value="5" aria-label="Amount jitter percent">
+            <p class="tiny muted">Randomizes buy sizes so snipers can't fingerprint your amounts.</p>
+          </div>
+
+          <label class="stealth-row" for="f-spread">
+            <input type="checkbox" id="f-spread" checked>
+            <span class="stealth-body">
+              <span class="stealth-title">Spread buys across slots</span>
+              <span class="stealth-desc">Buys land in different slots instead of all at once.</span>
+            </span>
+          </label>
         </div>
       </div>
 
       <div class="step-block">
         <div class="eyebrow">03 / BOOST YOUR LAUNCH</div>
         <div class="step-head"><span class="step-n">3</span><h2>Boost your launch</h2></div>
-        <p class="muted step-sub">Optional extras — the 0.2 SOL base already includes
-        standard Cloak stealth. Only add what you want.</p>
-
-        <label class="addon-card" for="addon-deepveil">
-          <input type="checkbox" id="addon-deepveil">
-          <span class="addon-body">
-            <span class="addon-top">
-              <span class="addon-title">Deep Veil</span>
-              <span class="addon-price">+0.2 SOL</span>
-            </span>
-            <span class="pill">recommended</span>
-            <span class="addon-desc">Max-strength Cloak stealth: 3 funding hops per buyer
-            wallet (vs standard 1–2), maximum amount jitter, widest slot spread.
-            Overrides your jitter and spread settings above while active.
-            Makes your funding trail virtually untraceable.</span>
-          </span>
-        </label>
+        <p class="muted step-sub">Optional extras. Only add what you want.</p>
 
         <div class="addon-card" id="addon-wallets-card">
           <span class="addon-body">
@@ -209,9 +217,7 @@
               <span class="addon-title">Extra stealth wallets</span>
               <span class="addon-price">+0.1 SOL each</span>
             </span>
-            <span class="addon-desc">Adds to your buyer wallet count above — each
-            additional wallet splits the dev buy further. More wallets,
-            smaller footprints.</span>
+            <span class="addon-desc">More wallets splitting your opening buy. Harder to trace, smaller footprints.</span>
             <span class="stepper" role="group" aria-label="Extra wallet quantity">
               <button type="button" class="stepper-btn" id="wallets-minus" aria-label="Fewer wallets">−</button>
               <span class="stepper-val" id="wallets-qty">0</span>
