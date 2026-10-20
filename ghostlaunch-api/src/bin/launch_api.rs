@@ -240,9 +240,10 @@ fn insufficient_balance_error(balance_sol: f64, rate_sol: f64) -> (StatusCode, J
             error: "insufficient_balance".into(),
             message: Some(format!(
                 "balance {balance_sol:.4} SOL is below the {rate_sol} SOL per-launch rate. \
-                 Deposit SOL to the payment wallet on the docs page, then email \
-                 ghostlaunch.api@gmail.com with your key's last 4 characters and the \
-                 transaction signature to be credited."
+                 Deposit SOL to the payment wallet on the docs page with your deposit code \
+                 (last 8 characters of your API key) in the memo — credit is automatic. \
+                 Deposits without a code need manual review: email ghostlaunch.api@gmail.com \
+                 with your key's last 4 characters and the transaction signature."
             )),
         }),
     )
@@ -1058,12 +1059,19 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
   <code>402 insufficient_balance</code> and builds nothing.
   <code>POST /v1/bundle/simulate</code>, all radar endpoints, and
   <code>GET /v1/balance</code> are always free.</p>
-  <p><b>How to top up:</b></p>
+  <p><b>How to top up:</b> your deposit code is the <b>last 8 characters</b>
+  of your API key. Include this code in the <b>memo</b> of your SOL deposit
+  and your key is credited automatically within minutes — no email needed.</p>
   <ol>
     <li>Send SOL to the payment wallet:<br>
     <code>2q4EwekHtit3BtzL25NmGbWJ5khPkmypYbba2t3A4XtM</code></li>
-    <li>Email <a href="mailto:ghostlaunch.api@gmail.com?subject=GhostLaunch%20balance%20top-up">ghostlaunch.api@gmail.com</a> with your key's <b>last 4 characters</b> and the payment's <b>transaction signature</b>. Your balance is credited within a day — usually much faster.</li>
+    <li>Put your deposit code (last 8 characters of your API key) in the
+    transaction's memo.</li>
   </ol>
+  <p>Deposits without a code are held for manual review — email
+  <a href="mailto:ghostlaunch.api@gmail.com?subject=GhostLaunch%20balance%20top-up">ghostlaunch.api@gmail.com</a>
+  with the payment's transaction signature and your key's last 4 characters.</p>
+  <p>Check your balance anytime: <code>GET /v1/balance</code> (API key auth).</p>
 
   <h2>Authentication</h2>
   <p>Every endpoint except <code>/v1/health</code> and this page requires an API key:</p>
