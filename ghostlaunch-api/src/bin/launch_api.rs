@@ -784,7 +784,7 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
 
   <div class="note">
     <b>Getting an API key:</b> keys are issued to integration partners.
-    Email <a href="mailto:ghostlaunch.api@tutamail.com?subject=GhostLaunch%20API%20access%20request">ghostlaunch.api@tutamail.com</a> with your platform name and expected launch volume to request access.
+    Email <a href="mailto:ghostlaunch.api@gmail.com?subject=GhostLaunch%20API%20access%20request">ghostlaunch.api@gmail.com</a> with your platform name and expected launch volume to request access.
   </div>
 </div>
 </body>
