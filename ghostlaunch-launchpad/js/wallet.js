@@ -165,6 +165,9 @@ export class WalletManager {
             this._emit("disconnect");
           });
           this._emit("connect", { publicKey: w.publicKey, name });
+          try {
+            toast("Connected via in-app wallet", "success");
+          } catch {}
           return w.publicKey;
         } catch (e) {
           throw new Error(`Could not connect to ${name}: ${e?.message || e}`);

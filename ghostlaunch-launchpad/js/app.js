@@ -547,6 +547,7 @@ function lpFail(e) {
   const msg = /first argument must be one of type/i.test(raw)
     ? "Your wallet didn't return a signature. Make sure your wallet is on Devnet, reconnect it, and try again — if the approval popup didn't appear, check for a blocked-popup notice."
     : raw;
+  const stack = (e?.stack || "").split("\n").slice(0, 4).join("\n");
   for (const s of LP_STEPS) {
     const li = lpStepEl(s.id);
     if (li?.classList.contains("active")) lpSetStep(s.id, "error", msg);
@@ -555,6 +556,7 @@ function lpFail(e) {
   el.classList.remove("hidden");
   el.innerHTML = `<div class="lp-error-box"><strong>Launch stopped.</strong>
     <p class="tiny">${esc(msg)}</p>
+    ${stack ? `<p class="tiny muted"><code>${esc(stack)}</code></p>` : ""}
     <p class="tiny muted">Transactions already confirmed stay on-chain. If the fee
     was paid but no token was created, the payment is recorded — email
     <a href="mailto:ghostlaunch.api@gmail.com">ghostlaunch.api@gmail.com</a>
