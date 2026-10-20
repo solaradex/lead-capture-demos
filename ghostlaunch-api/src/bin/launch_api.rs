@@ -1046,6 +1046,12 @@ struct LaunchpadBuildRequest {
     token_name: String,
     token_symbol: String,
     token_uri: String,
+    /// Optional website URL for the token's metadata (stored for IPFS pinning).
+    #[serde(default)]
+    token_website: Option<String>,
+    /// Optional X/Twitter handle for the token's metadata (stored for IPFS pinning).
+    #[serde(default)]
+    token_twitter: Option<String>,
     /// Creator wallet: pays the fee, funds the stealth chains, signs create.
     creator_pubkey: String,
     /// Total dev buy in SOL, split across the stealth buyer wallets.
