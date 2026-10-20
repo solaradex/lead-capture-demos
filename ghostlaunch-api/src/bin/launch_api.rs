@@ -30,7 +30,7 @@ use axum::{
     extract::{Path, Query, Request, State},
     http::StatusCode,
     middleware::{self, Next},
-    response::Response,
+    response::{Html, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -710,6 +710,86 @@ async fn health_handler() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok", "version": VERSION }))
 }
 
+/// Public API landing/docs page (no auth) — the target for the marketing
+/// site's "Get API Access" button.
+async fn docs_handler() -> Html<&'static str> {
+    Html(DOCS_HTML)
+}
+
+const DOCS_HTML: &str = r##"<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GhostLaunch API — Launch behind the veil</title>
+<style>
+  body { background:#050508; color:#e8e8f0; font-family: ui-sans-serif, system-ui, sans-serif; margin:0; padding:48px 20px 80px; }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 44px; margin: 0 0 6px; letter-spacing:-1px; }
+  .slogan { color:#00e5ff; font-size:18px; margin:0 0 8px; }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size:13px; text-transform:uppercase; letter-spacing:2px; color:#8a8aa3; }
+  p { line-height:1.6; color:#c9c9d8; }
+  h2 { margin-top:44px; font-size:22px; }
+  code { font-family: ui-monospace, Menlo, monospace; background:#12121c; padding:2px 6px; border-radius:4px; color:#a5f3fc; font-size:14px; }
+  pre { background:#0b0b14; border:1px solid #1e1e30; border-radius:8px; padding:16px; overflow-x:auto; font-size:13px; line-height:1.55; color:#d6d6e8; }
+  table { width:100%; border-collapse:collapse; margin-top:12px; }
+  td, th { text-align:left; padding:10px 8px; border-bottom:1px solid #1c1c2c; font-size:15px; vertical-align:top; }
+  th { color:#8a8aa3; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:1px; }
+  .price { color:#c4b5fd; font-weight:700; }
+  a { color:#00e5ff; }
+  .note { background:#0b0b14; border:1px solid #1e1e30; border-left:3px solid #7c3aed; border-radius:6px; padding:14px 16px; margin-top:36px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="mono">GhostLaunch API · v0.3.0</p>
+  <h1>GhostLaunch</h1>
+  <p class="slogan">Launch behind the veil.</p>
+  <p>The stealth launch system for Solana meme coins, as one API. Build a full
+  Pump.fun launch — token creation, distributed initial buys, stealth wallet
+  funding via <b>Cloak</b> — as unsigned transactions you sign yourself.
+  Non-custodial by design: this API never holds private keys.</p>
+
+  <h2>Endpoints</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>What it does</th></tr>
+    <tr><td><code>GET</code></td><td><code>/v1/health</code></td><td>Status + version. No auth.</td></tr>
+    <tr><td><code>POST</code></td><td><code>/v1/bundle/build</code></td><td>Build a launch bundle: create + up to 4 buys, optional Cloak stealth plan (multi-hop funding, amount jitter, slot spread). Returns unsigned transactions, signers in order, and one-time mint/hop secrets.</td></tr>
+    <tr><td><code>POST</code></td><td><code>/v1/bundle/simulate</code></td><td>Simulate a bundle against an RPC before submitting.</td></tr>
+    <tr><td><code>GET</code></td><td><code>/v1/radar/{mint}</code></td><td>Launch radar snapshot: sniper detection, whale alerts, holder analytics for a token.</td></tr>
+    <tr><td><code>POST</code></td><td><code>/v1/radar/watch</code></td><td>Register a mint for ongoing radar monitoring.</td></tr>
+    <tr><td><code>GET</code></td><td><code>/v1/radar/watch/{id}</code></td><td>Fetch a watch's latest radar report.</td></tr>
+  </table>
+
+  <h2>Authentication</h2>
+  <p>Every endpoint except <code>/v1/health</code> and this page requires an API key:</p>
+  <pre>X-API-Key: &lt;your key&gt;</pre>
+
+  <h2>Example — build a launch</h2>
+  <pre>curl -X POST https://ghostlaunch-api.onrender.com/v1/bundle/build \
+  -H "X-API-Key: &lt;your key&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Coin", "symbol": "COIN",
+    "creator": "&lt;your wallet pubkey&gt;",
+    "buys": [{ "buyer": "&lt;buyer pubkey&gt;", "sol": 0.1 }]
+  }'</pre>
+  <p>The response contains the mint pubkey, the one-time mint secret key, and
+  the unsigned transactions (base64) with their required signers listed in
+  order. Sign them with your own keys and submit — we never touch them.</p>
+
+  <h2>Pricing</h2>
+  <p><span class="price">Creators: 0.2 SOL per launch</span>, flat — stealth included.<br>
+  <span class="price">Platforms: 0.05 SOL per launch</span>, wholesale via API. You set your retail price and keep the spread.</p>
+
+  <div class="note">
+    <b>Getting an API key:</b> keys are issued to integration partners.
+    Reach out via <a href="https://ghostlaunch.framer.website/">ghostlaunch.framer.website</a> to request access.
+  </div>
+</div>
+</body>
+</html>"##;
+
 // ---------------------------------------------------------------------------
 // Radar: post-launch monitoring (read-only)
 // ---------------------------------------------------------------------------
@@ -933,7 +1013,7 @@ fn uuid_simple() -> String {
 /// API-key gate. Exempt: /v1/health (monitoring must not need a key).
 /// If LAUNCH_API_KEYS is unset, auth is skipped (dev mode).
 async fn auth_middleware(request: Request, next: Next) -> Result<Response, StatusCode> {
-    if request.uri().path() == "/v1/health" {
+    if request.uri().path() == "/v1/health" || request.uri().path() == "/" {
         return Ok(next.run(request).await);
     }
     let configured = std::env::var("LAUNCH_API_KEYS").unwrap_or_default();
@@ -959,6 +1039,7 @@ async fn auth_middleware(request: Request, next: Next) -> Result<Response, Statu
 
 fn app(state: ApiState) -> Router {
     Router::new()
+        .route("/", get(docs_handler))
         .route("/v1/health", get(health_handler))
         .route("/v1/bundle/build", post(build_handler))
         .route("/v1/bundle/simulate", post(simulate_handler))
