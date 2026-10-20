@@ -8,11 +8,22 @@
 //!
 //! Endpoints:
 //!   GET  /v1/health           -> { status, version } (no auth)
+//!   GET  /v1/balance          -> caller's own { key_type, lamports, rate_sol }
 //!   POST /v1/bundle/build     -> unsigned bundle + one-time mint secret
-//!   POST /v1/bundle/simulate  -> build + simulate every tx, submit nothing
+//!                                  (deducts the per-launch rate; 402 when empty)
+//!   POST /v1/bundle/simulate  -> build + simulate every tx, submit nothing (free)
+//!   GET  /v1/admin/balances    -> all keys' { key_last4, key_type, lamports } (master key only)
+//!   POST /v1/admin/credit     -> add SOL to a key's balance (master key only)
+//!   POST /v1/admin/set-type   -> set a key's platform/creator tier (master key only)
 //!
 //! Auth: X-API-Key header, checked against LAUNCH_API_KEYS (comma-separated).
 //! If LAUNCH_API_KEYS is unset, auth is skipped with a startup warning.
+//! Admin endpoints additionally require X-API-Key to equal MASTER_API_KEY.
+//!
+//! Billing: prepaid. In-memory ledger, seeded from KEY_BALANCES_JSON at
+//! startup (Render's disk is ephemeral). POST /v1/bundle/build deducts the
+//! key's per-launch rate (platform 0.05 SOL, creator 0.2 SOL); simulate and
+//! radar endpoints are free.
 
 #[path = "../create.rs"]
 mod create;
@@ -27,7 +38,7 @@ mod radar;
 
 use anyhow::{anyhow, Context, Result};
 use axum::{
-    extract::{Path, Query, Request, State},
+    extract::{Extension, Path, Query, Request, State},
     http::StatusCode,
     middleware::{self, Next},
     response::{Html, Response},
@@ -49,7 +60,7 @@ use std::str::FromStr;
 
 use plan::{InitialBuy, LaunchPlan};
 
-const VERSION: &str = "0.3.0";
+const VERSION: &str = "0.4.0";
 const DEFAULT_RPC_URL: &str = "https://api.devnet.solana.com";
 /// Recent blockhashes stay valid for ~150 slots (MAX_PROCESSING_AGE).
 const BLOCKHASH_VALID_SLOTS: u64 = 150;
@@ -205,6 +216,9 @@ struct SimulateResponse {
 #[derive(Debug, serde::Serialize)]
 struct ErrorBody {
     error: String,
+    /// Present on billing errors (e.g. insufficient_balance).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    message: Option<String>,
 }
 
 type ApiResult<T> = Result<Json<T>, (StatusCode, Json<ErrorBody>)>;
@@ -214,8 +228,144 @@ fn api_error(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<Er
         status,
         Json(ErrorBody {
             error: msg.into(),
+            message: None,
         }),
     )
+}
+
+fn insufficient_balance_error(balance_sol: f64, rate_sol: f64) -> (StatusCode, Json<ErrorBody>) {
+    (
+        StatusCode::PAYMENT_REQUIRED,
+        Json(ErrorBody {
+            error: "insufficient_balance".into(),
+            message: Some(format!(
+                "balance {balance_sol:.4} SOL is below the {rate_sol} SOL per-launch rate. \
+                 Deposit SOL to the payment wallet on the docs page, then email \
+                 ghostlaunch.api@gmail.com with your key's last 4 characters and the \
+                 transaction signature to be credited."
+            )),
+        }),
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Billing: prepaid per-key ledger
+// ---------------------------------------------------------------------------
+
+const PLATFORM_RATE_LAMPORTS: u64 = 50_000_000; // 0.05 SOL per launch
+const CREATOR_RATE_LAMPORTS: u64 = 200_000_000; // 0.2 SOL per launch
+const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum KeyType {
+    Platform,
+    Creator,
+}
+
+impl KeyType {
+    fn rate_lamports(self) -> u64 {
+        match self {
+            KeyType::Platform => PLATFORM_RATE_LAMPORTS,
+            KeyType::Creator => CREATOR_RATE_LAMPORTS,
+        }
+    }
+
+    fn rate_sol(self) -> f64 {
+        self.rate_lamports() as f64 / LAMPORTS_PER_SOL as f64
+    }
+}
+
+impl std::str::FromStr for KeyType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "platform" => Ok(KeyType::Platform),
+            "creator" => Ok(KeyType::Creator),
+            other => Err(format!("key_type must be \"platform\" or \"creator\", got \"{other}\"")),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct Balance {
+    lamports: u64,
+    key_type: KeyType,
+}
+
+impl Default for Balance {
+    /// New keys start on the platform tier with an empty balance.
+    fn default() -> Self {
+        Balance {
+            lamports: 0,
+            key_type: KeyType::Platform,
+        }
+    }
+}
+
+/// Last 4 characters of a key, for safe public references.
+fn key_last4(key: &str) -> String {
+    key.chars().rev().take(4).collect::<String>().chars().rev().collect()
+}
+
+/// Parse the startup ledger snapshot from KEY_BALANCES_JSON.
+/// Format: {"<full key>": {"lamports": N, "type": "platform"|"creator"}}.
+/// Malformed entries are skipped with a warning; a missing/empty var means
+/// an empty ledger (new keys start at zero balance).
+fn load_balances_from_env() -> std::collections::HashMap<String, Balance> {
+    let raw = std::env::var("KEY_BALANCES_JSON").unwrap_or_default();
+    if raw.trim().is_empty() {
+        eprintln!("billing: KEY_BALANCES_JSON unset — starting with an empty ledger");
+        return std::collections::HashMap::new();
+    }
+    let parsed: serde_json::Value = match serde_json::from_str(&raw) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("billing: KEY_BALANCES_JSON is not valid JSON ({e}) — starting empty");
+            return std::collections::HashMap::new();
+        }
+    };
+    let mut out = std::collections::HashMap::new();
+    let obj = match parsed.as_object() {
+        Some(o) => o,
+        None => {
+            eprintln!("billing: KEY_BALANCES_JSON must be a JSON object — starting empty");
+            return std::collections::HashMap::new();
+        }
+    };
+    for (key, entry) in obj {
+        if key.trim().is_empty() {
+            continue;
+        }
+        let lamports = entry
+            .get("lamports")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let type_str = entry
+            .get("type")
+            .or_else(|| entry.get("key_type"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("platform");
+        let key_type: KeyType = match type_str.parse() {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("billing: skipping balance entry for key ending {}: {e}", key_last4(key));
+                continue;
+            }
+        };
+        out.insert(key.clone(), Balance { lamports, key_type });
+    }
+    out
+}
+
+/// Keys configured on this server (the issued keys).
+fn configured_keys() -> Vec<String> {
+    std::env::var("LAUNCH_API_KEYS")
+        .unwrap_or_default()
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -489,7 +639,125 @@ fn rpc_url_of(req: &BuildRequest) -> String {
         .unwrap_or_else(|| DEFAULT_RPC_URL.to_string())
 }
 
-async fn build_handler(Json(req): Json<BuildRequest>) -> ApiResult<BuildResponse> {
+/// Self-service balance lookup for the caller's own key.
+async fn balance_handler(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthKey>,
+) -> ApiResult<BalanceResponse> {
+    let key = auth
+        .0
+        .ok_or_else(|| api_error(StatusCode::UNAUTHORIZED, "balance lookup requires an API key"))?;
+    let balances = state.balances.lock().await;
+    let bal = balances.get(&key).cloned().unwrap_or_default();
+    Ok(Json(BalanceResponse {
+        key_type: bal.key_type,
+        lamports: bal.lamports,
+        rate_sol: bal.key_type.rate_sol(),
+    }))
+}
+
+#[derive(Debug, serde::Serialize)]
+struct BalanceResponse {
+    key_type: KeyType,
+    lamports: u64,
+    rate_sol: f64,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CreditRequest {
+    /// The full API key to credit (must be a valid issued key).
+    key: String,
+    /// SOL to add to the balance.
+    sol: f64,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct SetTypeRequest {
+    /// The full API key to retier (must be a valid issued key).
+    key: String,
+    key_type: KeyType,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct KeyBalanceSummary {
+    key_last4: String,
+    key_type: KeyType,
+    lamports: u64,
+}
+
+/// POST /v1/admin/credit — add SOL to a key's prepaid balance.
+/// Master key required.
+async fn admin_credit_handler(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthKey>,
+    Json(req): Json<CreditRequest>,
+) -> ApiResult<KeyBalanceSummary> {
+    require_master(&auth)?;
+    if !configured_keys().iter().any(|k| k == &req.key) {
+        return Err(api_error(StatusCode::NOT_FOUND, "unknown API key"));
+    }
+    if !(req.sol > 0.0) || !req.sol.is_finite() {
+        return Err(api_error(StatusCode::BAD_REQUEST, "sol must be a positive number"));
+    }
+    let add = (req.sol * LAMPORTS_PER_SOL as f64).round() as u64;
+    let mut balances = state.balances.lock().await;
+    let bal = balances.entry(req.key.clone()).or_default();
+    bal.lamports = bal.lamports.saturating_add(add);
+    Ok(Json(KeyBalanceSummary {
+        key_last4: key_last4(&req.key),
+        key_type: bal.key_type,
+        lamports: bal.lamports,
+    }))
+}
+
+/// POST /v1/admin/set-type — set a key's platform/creator rate tier.
+/// Master key required.
+async fn admin_set_type_handler(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthKey>,
+    Json(req): Json<SetTypeRequest>,
+) -> ApiResult<KeyBalanceSummary> {
+    require_master(&auth)?;
+    if !configured_keys().iter().any(|k| k == &req.key) {
+        return Err(api_error(StatusCode::NOT_FOUND, "unknown API key"));
+    }
+    let mut balances = state.balances.lock().await;
+    let bal = balances.entry(req.key.clone()).or_default();
+    bal.key_type = req.key_type;
+    Ok(Json(KeyBalanceSummary {
+        key_last4: key_last4(&req.key),
+        key_type: bal.key_type,
+        lamports: bal.lamports,
+    }))
+}
+
+/// GET /v1/admin/balances — every configured key's balance summary.
+/// Master key required. Never returns full keys.
+async fn admin_balances_handler(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthKey>,
+) -> ApiResult<Vec<KeyBalanceSummary>> {
+    require_master(&auth)?;
+    let balances = state.balances.lock().await;
+    let list = configured_keys()
+        .iter()
+        .map(|k| {
+            let bal = balances.get(k).cloned().unwrap_or_default();
+            KeyBalanceSummary {
+                key_last4: key_last4(k),
+                key_type: bal.key_type,
+                lamports: bal.lamports,
+            }
+        })
+        .collect();
+    Ok(Json(list))
+}
+
+async fn build_handler(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthKey>,
+    Json(req): Json<BuildRequest>,
+) -> ApiResult<BuildResponse> {
     let plan = to_launch_plan(&req).map_err(|e| api_error(StatusCode::BAD_REQUEST, e.to_string()))?;
     let tip_account = match &req.tip_account {
         Some(s) => Some(
@@ -507,6 +775,21 @@ async fn build_handler(Json(req): Json<BuildRequest>) -> ApiResult<BuildResponse
         ),
         None => None,
     };
+    // Billing: after validation, before any RPC work. One atomic lock
+    // acquisition: check balance, deduct the per-launch rate, or 402.
+    if let Some(key) = &auth.0 {
+        let mut balances = state.balances.lock().await;
+        let bal = balances.entry(key.clone()).or_default();
+        let rate = bal.key_type.rate_lamports();
+        if bal.lamports < rate {
+            let (code, body) = insufficient_balance_error(
+                bal.lamports as f64 / LAMPORTS_PER_SOL as f64,
+                bal.key_type.rate_sol(),
+            );
+            return Err((code, body));
+        }
+        bal.lamports -= rate;
+    }
     let rpc_url = rpc_url_of(&req);
     let bundle = build_unsigned_bundle(&rpc_url, &plan, tip_account, stealth_plan.as_ref())
         .await
@@ -742,7 +1025,7 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
-  <p class="mono">GhostLaunch API · v0.3.0</p>
+  <p class="mono">GhostLaunch API · v0.4.0</p>
   <h1>GhostLaunch</h1>
   <p class="slogan">Launch behind the veil.</p>
   <p>The stealth launch system for Solana meme coins, as one API. Build a full
@@ -759,7 +1042,28 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
     <tr><td><code>GET</code></td><td><code>/v1/radar/{mint}</code></td><td>Launch radar snapshot: sniper detection, whale alerts, holder analytics for a token.</td></tr>
     <tr><td><code>POST</code></td><td><code>/v1/radar/watch</code></td><td>Register a mint for ongoing radar monitoring.</td></tr>
     <tr><td><code>GET</code></td><td><code>/v1/radar/watch/{id}</code></td><td>Fetch a watch's latest radar report.</td></tr>
+    <tr><td><code>GET</code></td><td><code>/v1/balance</code></td><td>Your key's prepaid balance: tier, lamports remaining, per-launch rate.</td></tr>
   </table>
+
+  <h2>Billing (prepaid)</h2>
+  <p>GhostLaunch runs on prepaid balances — no invoices, no chasing. Every
+  <code>POST /v1/bundle/build</code> deducts the per-launch rate from your
+  key's balance before the bundle is built:</p>
+  <table>
+    <tr><th>Tier</th><th>Per launch</th></tr>
+    <tr><td><span class="price">Platform</span></td><td>0.05 SOL</td></tr>
+    <tr><td><span class="price">Creator</span></td><td>0.2 SOL</td></tr>
+  </table>
+  <p>When a balance can't cover the next launch, the API returns
+  <code>402 insufficient_balance</code> and builds nothing.
+  <code>POST /v1/bundle/simulate</code>, all radar endpoints, and
+  <code>GET /v1/balance</code> are always free.</p>
+  <p><b>How to top up:</b></p>
+  <ol>
+    <li>Send SOL to the payment wallet:<br>
+    <code>2q4EwekHtit3BtzL25NmGbWJ5khPkmypYbba2t3A4XtM</code></li>
+    <li>Email <a href="mailto:ghostlaunch.api@gmail.com?subject=GhostLaunch%20balance%20top-up">ghostlaunch.api@gmail.com</a> with your key's <b>last 4 characters</b> and the payment's <b>transaction signature</b>. Your balance is credited within a day — usually much faster.</li>
+  </ol>
 
   <h2>Authentication</h2>
   <p>Every endpoint except <code>/v1/health</code> and this page requires an API key:</p>
@@ -785,8 +1089,9 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
   <p>Send launch fees to this address. Include your platform name or API key in the payment memo so your payment can be matched to your account.</p>
 
   <div class="note">
-    <b>Getting an API key:</b> keys are issued to integration partners.
-    Email <a href="mailto:ghostlaunch.api@gmail.com?subject=GhostLaunch%20API%20access%20request">ghostlaunch.api@gmail.com</a> with your platform name and expected launch volume to request access.
+    <b>Getting an API key:</b> keys are issued to launch platforms and to
+    individual creators (creator keys are billed at the creator tier).
+    Email <a href="mailto:ghostlaunch.api@gmail.com?subject=GhostLaunch%20API%20access%20request">ghostlaunch.api@gmail.com</a> with your platform name or creator details and expected launch volume to request access.
   </div>
 </div>
 </body>
@@ -800,7 +1105,16 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
 #[derive(Clone, Default)]
 struct ApiState {
     watches: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, WatchEntry>>>,
+    /// Prepaid billing ledger: API key -> balance. In-memory; seeded from
+    /// KEY_BALANCES_JSON at startup and snapshotted back to that env var
+    /// by the balances-sync cron (Render's disk is ephemeral).
+    balances: std::sync::Arc<tokio::sync::Mutex<std::collections::HashMap<String, Balance>>>,
 }
+
+/// The API key that authenticated this request, when key auth is configured.
+/// None in dev mode (LAUNCH_API_KEYS unset) — billing is skipped then.
+#[derive(Clone)]
+struct AuthKey(Option<String>);
 
 #[derive(Debug, Clone, serde::Serialize)]
 struct WatchEntry {
@@ -1013,29 +1327,39 @@ fn uuid_simple() -> String {
 // ---------------------------------------------------------------------------
 
 /// API-key gate. Exempt: /v1/health (monitoring must not need a key).
-/// If LAUNCH_API_KEYS is unset, auth is skipped (dev mode).
-async fn auth_middleware(request: Request, next: Next) -> Result<Response, StatusCode> {
+/// If LAUNCH_API_KEYS is unset, auth is skipped (dev mode). On success the
+/// caller's key is stored in the request extensions as AuthKey so handlers
+/// can bill it; in dev mode AuthKey(None) is stored and billing is skipped.
+async fn auth_middleware(mut request: Request, next: Next) -> Result<Response, StatusCode> {
     if request.uri().path() == "/v1/health" || request.uri().path() == "/" {
         return Ok(next.run(request).await);
     }
-    let configured = std::env::var("LAUNCH_API_KEYS").unwrap_or_default();
-    let keys: Vec<String> = configured
-        .split(',')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
+    let keys = configured_keys();
     if keys.is_empty() {
+        request.extensions_mut().insert(AuthKey(None));
         return Ok(next.run(request).await); // dev mode: no keys configured
     }
     let provided = request
         .headers()
         .get("x-api-key")
         .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if keys.iter().any(|k| k == provided) {
+        .unwrap_or("")
+        .to_string();
+    if keys.iter().any(|k| k == &provided) {
+        request.extensions_mut().insert(AuthKey(Some(provided)));
         Ok(next.run(request).await)
     } else {
         Err(StatusCode::UNAUTHORIZED)
+    }
+}
+
+/// Admin endpoints additionally require the MASTER key specifically (not
+/// just any valid key). MASTER_API_KEY unset => admin disabled.
+fn require_master(auth: &AuthKey) -> Result<(), (StatusCode, Json<ErrorBody>)> {
+    let master = std::env::var("MASTER_API_KEY").unwrap_or_default();
+    match (&auth.0, master.is_empty()) {
+        (Some(k), false) if k == &master => Ok(()),
+        _ => Err(api_error(StatusCode::FORBIDDEN, "admin disabled or wrong key")),
     }
 }
 
@@ -1043,11 +1367,15 @@ fn app(state: ApiState) -> Router {
     Router::new()
         .route("/", get(docs_handler))
         .route("/v1/health", get(health_handler))
+        .route("/v1/balance", get(balance_handler))
         .route("/v1/bundle/build", post(build_handler))
         .route("/v1/bundle/simulate", post(simulate_handler))
         .route("/v1/radar/{mint}", get(radar_snapshot_handler))
         .route("/v1/radar/watch", post(radar_watch_start_handler))
         .route("/v1/radar/watch/{id}", get(radar_watch_get_handler))
+        .route("/v1/admin/credit", post(admin_credit_handler))
+        .route("/v1/admin/set-type", post(admin_set_type_handler))
+        .route("/v1/admin/balances", get(admin_balances_handler))
         .layer(middleware::from_fn(auth_middleware))
         .with_state(state)
 }
@@ -1057,6 +1385,14 @@ async fn main() {
     if std::env::var("LAUNCH_API_KEYS").unwrap_or_default().is_empty() {
         eprintln!("WARNING: LAUNCH_API_KEYS is unset — API auth is disabled (dev mode)");
     }
+    if std::env::var("MASTER_API_KEY").unwrap_or_default().is_empty() {
+        eprintln!("WARNING: MASTER_API_KEY is unset — /v1/admin/* billing endpoints are disabled");
+    }
+    let balances = load_balances_from_env();
+    eprintln!(
+        "billing: loaded {} prepaid balances from KEY_BALANCES_JSON",
+        balances.len()
+    );
     let port: u16 = std::env::var("PORT")
         .ok()
         .and_then(|p| p.parse().ok())
@@ -1064,8 +1400,12 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
         .await
         .expect("binding port");
+    let state = ApiState {
+        balances: std::sync::Arc::new(tokio::sync::Mutex::new(balances)),
+        ..Default::default()
+    };
     eprintln!("launch-api v{VERSION} listening on 0.0.0.0:{port}");
-    axum::serve(listener, app(ApiState::default()))
+    axum::serve(listener, app(state))
         .await
         .expect("serving");
 }
@@ -1077,6 +1417,16 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Env vars are process-global; serialize the tests that mutate them so
+    /// parallel threads can't clobber each other's LAUNCH_API_KEYS etc.
+    static ENV_LOCK: std::sync::OnceLock<std::sync::Mutex<()>> = std::sync::OnceLock::new();
+    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
+        ENV_LOCK
+            .get_or_init(|| std::sync::Mutex::new(()))
+            .lock()
+            .unwrap()
+    }
     use solana_instruction::Instruction;
     use solana_pubkey::Pubkey;
     use tower::ServiceExt;
@@ -1339,6 +1689,7 @@ mod tests {
 
     #[tokio::test]
     async fn auth_rejects_missing_key_when_configured() {
+        let _env_guard = env_lock(); // serialize env-var mutation
         // With keys configured, a missing key -> 401 (health stays open).
         std::env::set_var("LAUNCH_API_KEYS", "test-key-123");
         let app = app(ApiState::default());
@@ -1369,6 +1720,191 @@ mod tests {
         assert_eq!(health.status(), StatusCode::OK);
 
         std::env::remove_var("LAUNCH_API_KEYS");
+    }
+
+    // -----------------------------------------------------------------------
+    // Billing tests (no RPC; dev-mode handlers hit only validation + ledger)
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn key_type_rates() {
+        assert_eq!(KeyType::Platform.rate_lamports(), 50_000_000);
+        assert_eq!(KeyType::Creator.rate_lamports(), 200_000_000);
+        assert!((KeyType::Platform.rate_sol() - 0.05).abs() < 1e-12);
+        assert!((KeyType::Creator.rate_sol() - 0.2).abs() < 1e-12);
+        assert_eq!(key_last4("abcdefgh"), "efgh");
+        assert_eq!(key_last4("ab"), "ab");
+        assert_eq!(key_last4(""), "");
+        assert_eq!("platform".parse::<KeyType>(), Ok(KeyType::Platform));
+        assert_eq!("creator".parse::<KeyType>(), Ok(KeyType::Creator));
+        assert!("bogus".parse::<KeyType>().is_err());
+    }
+
+    #[test]
+    fn balances_load_from_env_json() {
+        let _env_guard = env_lock(); // serialize env-var mutation
+        let key = "test-key-load-1";
+        let json = format!(
+            "{{\"{key}\": {{\"lamports\": 123456789, \"type\": \"creator\"}}, \"other\": {{\"lamports\": 5}}}}"
+        );
+        std::env::set_var("KEY_BALANCES_JSON", json);
+        let m = load_balances_from_env();
+        std::env::remove_var("KEY_BALANCES_JSON");
+        assert_eq!(m.get(key).unwrap().lamports, 123_456_789);
+        assert_eq!(m.get(key).unwrap().key_type, KeyType::Creator);
+        assert_eq!(m.get("other").unwrap().lamports, 5);
+        assert_eq!(m.get("other").unwrap().key_type, KeyType::Platform);
+        // Invalid JSON -> empty ledger, no panic.
+        std::env::set_var("KEY_BALANCES_JSON", "not json{{{");
+        assert!(load_balances_from_env().is_empty());
+        std::env::remove_var("KEY_BALANCES_JSON");
+        // Unset -> empty ledger.
+        assert!(load_balances_from_env().is_empty());
+    }
+
+    #[tokio::test]
+    async fn build_402_when_balance_insufficient() {
+        let _env_guard = env_lock(); // serialize env-var mutation
+        // Valid request (passes plan validation) + configured key with an
+        // empty balance -> 402 insufficient_balance, before any RPC.
+        std::env::set_var("LAUNCH_API_KEYS", "bill-test-key-402");
+        let app = app(ApiState::default());
+        let resp = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/v1/bundle/build")
+                    .header("x-api-key", "bill-test-key-402")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::to_string(&test_request()).unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::PAYMENT_REQUIRED);
+        let body = axum::body::to_bytes(resp.into_body(), 4096).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["error"], "insufficient_balance");
+        assert!(v["message"].as_str().unwrap().contains("0.05"));
+        std::env::remove_var("LAUNCH_API_KEYS");
+    }
+
+    #[tokio::test]
+    async fn admin_credit_and_balance_flow() {
+        let _env_guard = env_lock(); // serialize env-var mutation
+        std::env::set_var("LAUNCH_API_KEYS", "master-bill-key,platform-bill-key");
+        std::env::set_var("MASTER_API_KEY", "master-bill-key");
+        let state = ApiState::default();
+        let app = app(state.clone());
+
+        // Non-master key cannot touch admin.
+        let denied = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/v1/admin/credit")
+                    .header("x-api-key", "platform-bill-key")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        r#"{"key":"platform-bill-key","sol":1.0}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+
+        // Master credits the platform key 1.5 SOL.
+        let credited = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/v1/admin/credit")
+                    .header("x-api-key", "master-bill-key")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        r#"{"key":"platform-bill-key","sol":1.5}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(credited.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(credited.into_body(), 4096).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["lamports"], 1_500_000_000u64);
+        assert_eq!(v["key_type"], "platform");
+        assert_eq!(v["key_last4"], key_last4("platform-bill-key"));
+
+        // Self-service balance shows 1.5 SOL at the platform rate.
+        let bal = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/v1/balance")
+                    .header("x-api-key", "platform-bill-key")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(bal.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(bal.into_body(), 4096).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["lamports"], 1_500_000_000u64);
+        assert_eq!(v["key_type"], "platform");
+        assert!((v["rate_sol"].as_f64().unwrap() - 0.05).abs() < 1e-12);
+
+        // Retier to creator: rate becomes 0.2 SOL.
+        let retiered = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/v1/admin/set-type")
+                    .header("x-api-key", "master-bill-key")
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        r#"{"key":"platform-bill-key","key_type":"creator"}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(retiered.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(retiered.into_body(), 4096).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(v["key_type"], "creator");
+        assert_eq!(v["lamports"], 1_500_000_000u64);
+
+        // Admin list shows last-4 only, never full keys.
+        let list = app
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/v1/admin/balances")
+                    .header("x-api-key", "master-bill-key")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(list.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(list.into_body(), 65536).await.unwrap();
+        let v: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let arr = v.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+        for entry in arr {
+            let l4 = entry["key_last4"].as_str().unwrap();
+            assert_eq!(l4.len(), 4);
+            assert!(!l4.contains("bill-key"));
+        }
+
+        std::env::remove_var("LAUNCH_API_KEYS");
+        std::env::remove_var("MASTER_API_KEY");
     }
 
     /// Full build against a live RPC. Needs network; skips gracefully when
