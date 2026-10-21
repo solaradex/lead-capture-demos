@@ -61,7 +61,7 @@ use std::str::FromStr;
 use plan::{InitialBuy, LaunchPlan};
 
 const VERSION: &str = "0.5.0";
-const DEFAULT_RPC_URL: &str = "https://api.devnet.solana.com";
+const DEFAULT_RPC_URL: &str = "https://api.mainnet-beta.solana.com";
 /// Recent blockhashes stay valid for ~150 slots (MAX_PROCESSING_AGE).
 const BLOCKHASH_VALID_SLOTS: u64 = 150;
 const CU_LIMIT: u32 = 300_000;
