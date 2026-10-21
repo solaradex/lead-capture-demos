@@ -13,14 +13,38 @@ import { CONFIG } from "./config.js";
  * In the Solflare mobile app's built-in browser, window.solflare is injected
  * directly. Talking to it directly is far more reliable than routing through
  * the wallet-adapter SDK's popup/iframe machinery (which is built for desktop
- * extensions and breaks on mobile — signing returns garbage).
+ * extensions — in the in-app browser its postMessage signing gets null back
+ * and dies in Buffer.from).
+ *
+ * Detection is deliberately broad: the in-app browser doesn't always set the
+ * isSolflare flag the way the desktop extension does.
  */
 function getInjectedSolflare() {
   try {
+    if (window.solflare?.isSolflare) return window.solflare;
+    if (window.SolflareApp) return window.SolflareApp;
     const p = window.solflare;
-    return p && p.isSolflare ? p : null;
+    if (
+      p &&
+      typeof p.connect === "function" &&
+      typeof p.signTransaction === "function"
+    ) {
+      return p;
+    }
+    return null;
   } catch {
     return null;
+  }
+}
+
+/** Wait briefly for the in-app browser to inject its provider. */
+async function waitForInjectedSolflare(timeoutMs = 2500) {
+  const start = Date.now();
+  for (;;) {
+    const p = getInjectedSolflare();
+    if (p) return p;
+    if (Date.now() - start > timeoutMs) return null;
+    await new Promise((r) => setTimeout(r, 100));
   }
 }
 
@@ -164,7 +188,7 @@ export class WalletManager {
     // Prefer the injected provider (Solflare mobile in-app browser) —
     // direct, no popup/iframe machinery.
     if (name === "Solflare") {
-      const injected = getInjectedSolflare();
+      const injected = await waitForInjectedSolflare();
       if (injected) {
         try {
           const w = new InjectedSolflareWallet(injected);
@@ -190,6 +214,9 @@ export class WalletManager {
           throw new Error(`Could not connect to ${name}: ${e?.message || e}`);
         }
       }
+      try {
+        toast("In-app wallet not found — using extension mode", "warning");
+      } catch {}
     }
     const adapter = this._adapter(name);
     if (!adapter.connected) {
@@ -257,7 +284,7 @@ export class WalletManager {
     try {
       // Injected provider first (mobile in-app browser).
       if (saved === "Solflare") {
-        const injected = getInjectedSolflare();
+        const injected = await waitForInjectedSolflare(1500);
         if (injected && injected.connected && injected.publicKey) {
           const w = new InjectedSolflareWallet(injected);
           this.current = w;
