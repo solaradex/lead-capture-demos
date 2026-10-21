@@ -1832,10 +1832,11 @@ fn app(state: ApiState) -> Router {
         .route("/v1/admin/credit", post(admin_credit_handler))
         .route("/v1/admin/set-type", post(admin_set_type_handler))
         .route("/v1/admin/balances", get(admin_balances_handler))
-        // CORS must come before auth so browsers' preflight OPTIONS requests
-        // aren't blocked (the launchpad frontend calls this API cross-origin).
-        .layer(CorsLayer::permissive())
+        // CORS must be the OUTERMOST layer (last .layer() call) so it handles
+        // browsers' preflight OPTIONS requests before auth middleware sees
+        // them (preflights carry no auth header).
         .layer(middleware::from_fn(auth_middleware))
+        .layer(CorsLayer::permissive())
         .with_state(state)
 }
 
