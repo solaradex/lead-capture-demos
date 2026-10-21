@@ -1,0 +1,53 @@
+[package]
+name = "launch-bundle"
+version = "0.1.0"
+edition = "2021"
+description = "Pump.fun launch bundler: create + initial buys in one Jito bundle (anti-snipe launches)"
+
+[[bin]]
+name = "launch-bundle"
+path = "src/main.rs"
+
+[[bin]]
+name = "launch-api"
+path = "src/bin/launch_api.rs"
+
+[[bin]]
+name = "stealth-proof"
+path = "src/bin/stealth_proof.rs"
+
+[[bin]]
+name = "radar-proof"
+path = "src/bin/radar_proof.rs"
+
+[dependencies]
+# Reuse the REMIRUN sniper's transaction builders, Jito relay, and PDA
+# helpers via path dependency. This crate never modifies that repo.
+solana-sniper = { path = "../../../sniper-bot/solana-sniper" }
+anyhow = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+base64 = "0.22"
+bincode = "1"
+solana-pubkey = "4"
+solana-keypair = "3"
+solana-hash = "4"
+solana-instruction = "4"
+solana-signer = "3"
+solana-message = "4"
+solana-transaction = "4"
+solana-compute-budget-interface = "3.1"
+solana-signature = "3"
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors"] }
+bs58 = "0.5"
+rand = "0.9"
+
+[dev-dependencies]
+tower = "0.5"
+
+[[bin]]
+name = "fullsystem-proof"
+path = "src/bin/fullsystem_proof.rs"
