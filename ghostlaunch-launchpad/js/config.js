@@ -1,18 +1,17 @@
 /**
  * GhostLaunch Launchpad — central configuration.
  *
- * DEVNET ONLY. Flip `network` to "mainnet" only with Brad's explicit approval.
- * No mainnet execution, no real SOL spent from this scaffold.
+ * MAINNET. Brad approved Oct 21, 2026. Real SOL, real launches.
  */
 export const CONFIG = {
-  network: "devnet",
+  network: "mainnet",
 
-  // RPC endpoints. Public devnet RPC is rate-limited — TODO: swap in a
-  // Helius devnet key (same pattern as the launch-api backend) for production.
+  // RPC endpoints. Public mainnet RPC is rate-limited — swap in a
+  // Helius mainnet key for production if congestion hits.
   rpcUrl:
-    "devnet" === "devnet"
-      ? "https://api.devnet.solana.com"
-      : "https://api.mainnet-beta.solana.com",
+    "mainnet" === "mainnet"
+      ? "https://api.mainnet-beta.solana.com"
+      : "https://api.devnet.solana.com",
 
   // Pump.fun live programs (verified Oct 2026, pump-public-docs).
   pumpProgramId: "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",

@@ -40,11 +40,10 @@ const FEE_RECIPIENT_BUYBACK = new PublicKey(
 
 let _connection = null;
 
-/** Shared Connection with fallback RPCs (public devnet is often congested). */
+/** Shared Connection with fallback RPCs (public mainnet is often congested). */
 const FALLBACK_RPCS = [
-  "https://api.devnet.solana.com",
-  "https://devnet.helius-rpc.com/?api-key=public",
-  "https://rpc.ankr.com/solana_devnet",
+  "https://api.mainnet-beta.solana.com",
+  "https://rpc.ankr.com/solana",
 ];
 let _rpcIndex = 0;
 

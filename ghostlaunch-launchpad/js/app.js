@@ -392,7 +392,7 @@ async function confirmSignature(connection, sig, timeoutMs = 90000) {
     if (s?.err) throw new Error("Transaction failed on-chain.");
     if (Date.now() - start > timeoutMs) {
       throw new Error(
-        `Confirmation timed out — check the explorer: https://explorer.solana.com/tx/${sig}?cluster=devnet`
+        `Confirmation timed out — check the explorer: https://explorer.solana.com/tx/${sig}`
       );
     }
     await sleep(1200);
@@ -506,7 +506,7 @@ function lpShowResult({ mint, createSig, radarWatchId, name, symbol }) {
   lpSetStep("done", "done", "Your token is live.");
   const el = document.getElementById("lp-result");
   el.classList.remove("hidden");
-  const ex = `https://explorer.solana.com/address/${mint}?cluster=devnet`;
+  const ex = `https://explorer.solana.com/address/${mint}`;
   el.innerHTML = `
     <div class="lp-done">
       <div class="lp-mint"><span class="tiny muted">Mint address</span>
@@ -519,7 +519,7 @@ function lpShowResult({ mint, createSig, radarWatchId, name, symbol }) {
         <code class="tiny">${esc(radarWatchId)}</code> — sniper &amp; whale alerts
         are being collected for this mint.</p>` : ""}
       <p class="tiny muted">Create tx:
-        <a href="https://explorer.solana.com/tx/${createSig}?cluster=devnet"
+        <a href="https://explorer.solana.com/tx/${createSig}"
            target="_blank" rel="noopener">${esc(shortAddr(createSig))}</a></p>
     </div>`;
   document.getElementById("lp-view-curve").onclick = () => {
