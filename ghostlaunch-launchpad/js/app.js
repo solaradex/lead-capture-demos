@@ -548,6 +548,10 @@ function lpFail(e) {
     ? "Your wallet didn't return a signature. Make sure your wallet is on Devnet, reconnect it, and try again — if the approval popup didn't appear, check for a blocked-popup notice."
     : raw;
   const stack = (e?.stack || "").split("\n").slice(0, 4).join("\n");
+  let pathInfo = "";
+  try {
+    pathInfo = ` [wallet path: ${wallet.current?.path || wallet.currentName || "none"}]`;
+  } catch {}
   for (const s of LP_STEPS) {
     const li = lpStepEl(s.id);
     if (li?.classList.contains("active")) lpSetStep(s.id, "error", msg);
@@ -556,7 +560,7 @@ function lpFail(e) {
   el.classList.remove("hidden");
   el.innerHTML = `<div class="lp-error-box"><strong>Launch stopped.</strong>
     <p class="tiny">${esc(msg)}</p>
-    ${stack ? `<p class="tiny muted"><code>${esc(stack)}</code></p>` : ""}
+    ${stack ? `<p class="tiny muted"><code>${esc(stack)}${esc(pathInfo)}</code></p>` : ""}
     <p class="tiny muted">Transactions already confirmed stay on-chain. If the fee
     was paid but no token was created, the payment is recorded — email
     <a href="mailto:ghostlaunch.api@gmail.com">ghostlaunch.api@gmail.com</a>
@@ -575,6 +579,27 @@ async function payLaunchFee(connection, lamports) {
   const tx = new Transaction({ feePayer: from, recentBlockhash: blockhash }).add(
     SystemProgram.transfer({ fromPubkey: from, toPubkey: to, lamports })
   );
+  // Sanity: our own tx must serialize. If this throws, the bug is in our
+  // construction, not the wallet handoff.
+  try {
+    tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+  } catch (e) {
+    throw new Error(`fee-tx-build failed: ${e?.message || e}`);
+  }
+  // In-app browsers: signAndSendTransaction is a single native call and the
+  // most reliable path. Fall back to sign + manual send.
+  const cur = wallet.current;
+  if (cur?.path === "injected" && typeof cur.signAndSendTransaction === "function") {
+    try {
+      const sig = await cur.signAndSendTransaction(tx);
+      await confirmSignature(connection, sig);
+      return sig;
+    } catch (e) {
+      const m = String(e?.message || e);
+      // If the wallet rejected or the method is broken, try sign+send before giving up.
+      if (/reject|cancel|denied/i.test(m)) throw e;
+    }
+  }
   const signed = await wallet.signTransaction(tx);
   return sendSignedTxRaw(connection, signed);
 }

@@ -29,6 +29,7 @@ class InjectedSolflareWallet {
   constructor(provider) {
     this.p = provider;
     this._onDisconnect = [];
+    this.path = "injected";
   }
   get publicKey() {
     const pk = this.p.publicKey;
@@ -56,6 +57,22 @@ class InjectedSolflareWallet {
   }
   async signAllTransactions(txs) {
     return await this.p.signAllTransactions(txs);
+  }
+  /**
+   * signAndSendTransaction is the most reliable signing method inside
+   * in-app browsers (single native call, no popup/iframe juggling).
+   * Returns the signature string.
+   */
+  async signAndSendTransaction(tx) {
+    if (typeof this.p.signAndSendTransaction !== "function") {
+      throw new Error("signAndSendTransaction not available");
+    }
+    const result = await this.p.signAndSendTransaction(tx);
+    const sig = result?.signature ?? result;
+    if (typeof sig !== "string" || sig.length < 80) {
+      throw new Error("signAndSendTransaction returned no signature");
+    }
+    return sig;
   }
 }
 
