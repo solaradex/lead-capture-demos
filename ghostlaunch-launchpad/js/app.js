@@ -8,9 +8,9 @@
  * upload, launch submission (backend proxy), and the "just launched" feed
  * are stubbed with TODOs. Devnet only — no mainnet execution.
  */
-import { CONFIG, LAMPORTS_PER_SOL } from "./config.js";
-import { wallet } from "./wallet.js";
-import { fetchCurveProgress, getConnection } from "./pump.js";
+import { CONFIG, LAMPORTS_PER_SOL } from "./config.js?v=20261021b";
+import { wallet } from "./wallet.js?v=20261021b";
+import { fetchCurveProgress, getConnection } from "./pump.js?v=20261021b";
 import {
   PublicKey,
   Keypair,
