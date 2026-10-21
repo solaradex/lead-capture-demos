@@ -60,7 +60,10 @@ class InjectedSolflareWallet {
     return pk ? new PublicKey(pk.toBytes()) : null;
   }
   get connected() {
-    return !!this.p.connected && !!this.p.publicKey;
+    // The provider's `connected` flag isn't reliable in all in-app browsers
+    // (it can stay false even after connect() resolves). A publicKey is the
+    // real proof of connection.
+    return !!this.p.publicKey;
   }
   async connect() {
     if (!this.p.connected) await this.p.connect();
