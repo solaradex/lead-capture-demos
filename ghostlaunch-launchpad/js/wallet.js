@@ -282,15 +282,27 @@ export class WalletManager {
     }
     if (!saved) return null;
     try {
-      // Injected provider first (mobile in-app browser).
+      // Injected provider first (mobile in-app browser). If the provider
+      // exists at all, use it — don't fall through to the adapter just
+      // because it isn't "connected" yet on a fresh page load. The adapter
+      // path is broken inside in-app browsers (its postMessage signing gets
+      // null back), so falling through strands the user on a dead path.
       if (saved === "Solflare") {
         const injected = await waitForInjectedSolflare(1500);
-        if (injected && injected.connected && injected.publicKey) {
+        if (injected) {
           const w = new InjectedSolflareWallet(injected);
-          this.current = w;
-          this.currentName = saved;
-          this._emit("connect", { publicKey: w.publicKey, name: saved });
-          return w.publicKey;
+          // If the provider is already connected (returning user), adopt it
+          // silently. If not, leave it for the user to connect via the
+          // Connect button — but do NOT fall through to the adapter.
+          if (injected.connected && injected.publicKey) {
+            this.current = w;
+            this.currentName = saved;
+            this._emit("connect", { publicKey: w.publicKey, name: saved });
+            return w.publicKey;
+          }
+          // Provider exists but not connected: clear the stale auto-connect
+          // so the next explicit connect() takes the injected path.
+          return null;
         }
       }
       const adapter = this._adapter(saved);
