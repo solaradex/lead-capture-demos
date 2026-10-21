@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GhostLaunch — wallet probe (devnet, no funds move)</title>
+<!--
+  DIAGNOSTIC PAGE — not linked from the site. Deploy only when asked.
+  Open inside the Solflare in-app browser, tap Run, screenshot the result.
+  Nothing is sent to the chain: every probe is sign-only or local.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "@solana/web3.js": "https://esm.sh/@solana/web3.js@1.98.0",
+    "bs58": "https://esm.sh/bs58@6.0.0"
+  }
+}
+</script>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0b0b10; color: #e8e8ee; padding: 16px; }
+  button { font-size: 18px; padding: 12px 24px; border-radius: 10px; border: 0;
+           background: #7c3aed; color: #fff; margin: 8px 0; }
+  pre { white-space: pre-wrap; word-break: break-word; background: #14141c;
+        padding: 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; }
+  .ok { color: #4ade80; } .bad { color: #f87171; } .dim { color: #9ca3af; }
+</style>
+</head>
+<body>
+<h2>🔍 Wallet probe</h2>
+<p class="dim">Devnet only. Sign-only probes — nothing is broadcast, no SOL moves.</p>
+<button id="run">Run probe</button>
+<pre id="out">Tap "Run probe", then screenshot this box.</pre>
+
+<script type="module">
+import { Connection, Transaction, VersionedTransaction, TransactionMessage,
+         SystemProgram, PublicKey } from "@solana/web3.js";
+
+const out = document.getElementById("out");
+const lines = [];
+const log = (t, cls) => lines.push(cls ? `<span class="${cls}">${t}</span>` : t);
+const render = () => { out.innerHTML = lines.join("\n"); };
+const err1 = (e) => String(e && (e.message || e)).split("\n")[0].slice(0, 220);
+
+function findProvider() {
+  if (window.solflare && window.solflare.isSolflare) return ["window.solflare (isSolflare)", window.solflare];
+  if (window.SolflareApp) return ["window.SolflareApp", window.SolflareApp];
+  const p = window.solflare;
+  if (p && typeof p.connect === "function") return ["window.solflare (duck-typed)", p];
+  return ["none", null];
+}
+
+document.getElementById("run").onclick = async () => {
+  lines.length = 0;
+  try {
+    const [label, p] = findProvider();
+    log("provider: " + label, p ? "ok" : "bad");
+    if (!p) { render(); return; }
+    for (const m of ["connect","disconnect","signTransaction","signAllTransactions","signAndSendTransaction","signMessage","on"]) {
+      log(`  ${m}: ${typeof p[m]}`, typeof p[m] === "function" ? "ok" : "dim");
+    }
+    if (typeof p.connect === "function" && !p.connected) { await p.connect(); log("connect(): ok", "ok"); }
+    else log("connect(): skipped (already connected or n/a)", "dim");
+    const pkRaw = p.publicKey;
+    log("publicKey raw type: " + (pkRaw ? pkRaw.constructor.name : "null"));
+    const me = new PublicKey(pkRaw.toBytes ? pkRaw.toBytes() : pkRaw.toString());
+    log("publicKey: " + me.toBase58(), "ok");
+
+    const connection = new Connection("https://api.devnet.solana.com", "confirmed");
+    const { blockhash } = await connection.getLatestBlockhash("confirmed");
+
+    // Probe A: legacy Transaction, sign only
+    const legacy = new Transaction({ feePayer: me, recentBlockhash: blockhash })
+      .add(SystemProgram.transfer({ fromPubkey: me, toPubkey: me, lamports: 0 }));
+    try {
+      legacy.serialize({ requireAllSignatures: false, verifySignatures: false });
+      log("A. legacy tx local serialize: ok", "ok");
+    } catch (e) { log("A. legacy tx local serialize FAILED: " + err1(e), "bad"); }
+    try {
+      const r = await p.signTransaction(legacy);
+      log("A. provider.signTransaction(legacy): ok", "ok");
+      log("   returned: " + (r ? r.constructor.name : "null") +
+          (typeof r === "string" ? " (len " + r.length + ")" : ""), "ok");
+    } catch (e) { log("A. provider.signTransaction(legacy) FAILED: " + err1(e), "bad"); }
+
+    // Probe B: VersionedTransaction, sign only
+    const msg = new TransactionMessage({
+      payerKey: me, recentBlockhash: blockhash,
+      instructions: [SystemProgram.transfer({ fromPubkey: me, toPubkey: me, lamports: 0 })],
+    }).compileToV0Message();
+    const vtx = new VersionedTransaction(msg);
+    try {
+      const r = await p.signTransaction(vtx);
+      log("B. provider.signTransaction(versioned): ok", "ok");
+      log("   returned: " + (r ? r.constructor.name : "null"), "ok");
+    } catch (e) { log("B. provider.signTransaction(versioned) FAILED: " + err1(e), "bad"); }
+
+    // Probe C: serialized base58 string (how Solflare's own adapters talk to it)
+    try {
+      const bs58mod = await import("bs58");
+      const b58 = bs58mod.default.encode(legacy.serialize({ requireAllSignatures: false, verifySignatures: false }));
+      const r = await p.signTransaction(b58);
+      log("C. provider.signTransaction(base58 string): ok", "ok");
+      log("   returned: " + (r ? r.constructor.name : "null"), "ok");
+    } catch (e) { log("C. provider.signTransaction(base58 string) FAILED: " + err1(e), "bad"); }
+
+    log("---", "dim");
+    log("Done. Screenshot this and send it to Ren.", "ok");
+  } catch (e) {
+    log("PROBE CRASHED: " + err1(e), "bad");
+  }
+  render();
+};
+</script>
+</body>
+</html>
