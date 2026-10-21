@@ -1781,6 +1781,29 @@ fn uuid_simple() -> String {
 /// If LAUNCH_API_KEYS is unset, auth is skipped (dev mode). On success the
 /// caller's key is stored in the request extensions as AuthKey so handlers
 /// can bill it; in dev mode AuthKey(None) is stored and billing is skipped.
+/// Simple CORS middleware: handles preflight OPTIONS and adds CORS headers
+/// to all responses. The launchpad frontend calls this API cross-origin.
+async fn cors_middleware(request: Request, next: Next) -> Response {
+    use axum::http::{HeaderValue, Method};
+    // Handle preflight OPTIONS directly.
+    if request.method() == Method::OPTIONS {
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header("access-control-allow-origin", "*")
+            .header("access-control-allow-methods", "GET, POST, OPTIONS")
+            .header("access-control-allow-headers", "content-type, x-api-key")
+            .header("access-control-max-age", "86400")
+            .body(axum::body::Body::empty())
+            .unwrap();
+    }
+    let mut response = next.run(request).await;
+    response.headers_mut().insert(
+        "access-control-allow-origin",
+        HeaderValue::from_static("*"),
+    );
+    response
+}
+
 async fn auth_middleware(mut request: Request, next: Next) -> Result<Response, StatusCode> {
     let path = request.uri().path();
     // Public: health/docs (monitoring + marketing) and the launchpad build
@@ -1831,7 +1854,10 @@ fn app(state: ApiState) -> Router {
         .route("/v1/admin/credit", post(admin_credit_handler))
         .route("/v1/admin/set-type", post(admin_set_type_handler))
         .route("/v1/admin/balances", get(admin_balances_handler))
+        // CORS (outermost): handles preflight OPTIONS and adds headers to all
+        // responses. Must run before auth (preflights carry no auth header).
         .layer(middleware::from_fn(auth_middleware))
+        .layer(middleware::from_fn(cors_middleware))
         .with_state(state)
 }
 
