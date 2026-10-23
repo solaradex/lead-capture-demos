@@ -545,7 +545,7 @@ function lpFail(e) {
   // signature back (wrong network, blocked popup, dismissed approval).
   // Say what to do instead of showing the raw internals.
   const msg = /first argument must be one of type/i.test(raw)
-    ? "Your wallet didn't return a signature. Make sure your wallet is on Devnet, reconnect it, and try again — if the approval popup didn't appear, check for a blocked-popup notice."
+    ? "Your wallet didn't return a signature. Make sure your wallet is on Mainnet, reconnect it, and try again — if the approval popup didn't appear, check for a blocked-popup notice."
     : raw;
   const stack = (e?.stack || "").split("\n").slice(0, 4).join("\n");
   let pathInfo = "";
@@ -943,7 +943,7 @@ function wireLiquidityChecker() {
 /* ---------------------------------- boot ----------------------------------- */
 
 document.getElementById("logo").innerHTML = `${ghostLogo(28)}<span>GhostLaunch</span>`;
-document.getElementById("net-badge").textContent = CONFIG.network.toUpperCase() + "NET";
+document.getElementById("net-badge").textContent = CONFIG.network.toUpperCase();
 
 renderWalletButtons();
 wireForm();
