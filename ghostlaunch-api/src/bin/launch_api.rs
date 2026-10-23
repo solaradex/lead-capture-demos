@@ -1521,6 +1521,11 @@ const DOCS_HTML: &str = r##"<!DOCTYPE html>
     individual creators (creator keys are billed at the creator tier).
     Email <a href="mailto:ghostlaunch.api@gmail.com?subject=GhostLaunch%20API%20access%20request">ghostlaunch.api@gmail.com</a> with your platform name or creator details and expected launch volume to request access.
   </div>
+  <footer style="margin-top:48px;padding-top:20px;border-top:1px solid #1c1c2c;font-size:12px;line-height:1.7;color:#8a8aa3;">
+    <p>&copy; 2026 GhostLaunch. All rights reserved. GhostLaunch&trade;, Cloak&trade;, and &ldquo;Launch behind the veil&rdquo; are trademarks of GhostLaunch. Pump.fun, Solana, and Solflare are trademarks of their respective owners.</p>
+    <p><b>Security:</b> GhostLaunch is non-custodial &mdash; we never hold your private keys or your SOL. You sign every transaction with your own wallet. Token authorities are held by the Pump.fun program: after launch, nobody can mint more tokens or freeze wallets.</p>
+    <p><b>Disclaimer:</b> Crypto assets are volatile and risky. Nothing here is financial advice, and launching a token does not guarantee any market value or return. On-chain fees are non-refundable. Use at your own risk.</p>
+  </footer>
 </div>
 </body>
 </html>"##;
